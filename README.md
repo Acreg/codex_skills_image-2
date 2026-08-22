@@ -5,6 +5,7 @@
 
 第一步
 下载压缩包
+https://github.com/Acreg/codex_skills_image-2/releases
 
 第二步
 把安装包拖动到codex让他安装
