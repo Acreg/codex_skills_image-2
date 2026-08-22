@@ -13,6 +13,8 @@ https://github.com/Acreg/codex_skills_image-2/releases
 
 第三步
 对话框输入“/”打开技能选择界面
-找到"image-2图片生成"，选择后让codex使用这个技能来生成图片即可
+找到"image-2图片生成"（一般来说在最下面），选择后让codex使用这个技能来生成图片即可
+<img width="1240" height="722" alt="image" src="https://github.com/user-attachments/assets/c1ebfc58-ceb8-4121-95d2-9971afe3fcbb" />
+
 
 <img width="1253" height="413" alt="image" src="https://github.com/user-attachments/assets/d22c2969-50cd-46f5-a354-8599474a8eae" />
