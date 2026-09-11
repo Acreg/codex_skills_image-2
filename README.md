@@ -1,3 +1,4 @@
+
 # codex_skills_image-2
 [codex]image-2图片生成skills
 
@@ -18,3 +19,8 @@ https://github.com/Acreg/codex_skills_image-2/releases
 
 
 <img width="1253" height="413" alt="image" src="https://github.com/user-attachments/assets/d22c2969-50cd-46f5-a354-8599474a8eae" />
+
+## 给 Codex：看的提示词：
+
+这是 **AA_Onemini图片生成** 的可执行 Codex Skill 安装包，不是仅供阅读的说明文档。
+安装或更新 AA_Onemini图片生成：从 https://github.com/Acreg/codex_skills_image-2/releases/latest 下载最新版 portable ZIP，不要下载 Source code。解压后读取包内 README.md 和 manifest.json，先运行 install.py --check；未安装则直接安装，已安装则比较 VERSION、备份旧版并原位更新，不创建重复 Skill。完成后验证内部名 aa-onemini-image-generation、显示名 AA_Onemini图片生成、版本和测试结果。
