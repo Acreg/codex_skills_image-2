@@ -1,12 +1,15 @@
 {
+  "schema": 1,
+  "skill": "image-image-generation",
+  "version": "4.1.0",
   "files": {
     "README.md": "b40b69ef38338add8308c93af48025aae1914c3ead976b17f2796983f8e9504d",
     "_package_tests/test_install.py": "6f8c02a3ce7f3120ec64b31f7b11c728531b3bb8fe0fbd02918fe169ed51a817",
-    "image-image-generation/.gitattributes": "eca72523ae9582bc9819ae6ee070a1c589ff56b42afed7208fda6a4ba5f530e5",
-    "image-image-generation/.gitignore": "47b2d9e3e63f74b95e9d2b1fcd628b88726a6cd17034a19ac89e4f495ac59f35",
+    "image-image-generation/.gitattributes": "2eb7beac7ff96f83af1edb2f7259ed5013665241441e6d3f44085e22ae1994f3",
+    "image-image-generation/.gitignore": "202c1d097c3540fe4f2aff182044c3b40e14ad798e6b6322b9537e728d1114b9",
     "image-image-generation/CHANGELOG.md": "cfb7b934ef915a3fd6a0d9ba65a04362fefdeca0ac199a18b1e84c4c3ce5e74c",
     "image-image-generation/SKILL.md": "08049416eb6e8534ab267e245c51ab52b78518cf2ad5f6ffd8075f4169e9433e",
-    "image-image-generation/VERSION": "0874a8fe36effb87780f431845b5a7d85be657f2bd998ce8eeace717860d3b78",
+    "image-image-generation/VERSION": "3b10b6ad566eadbcacadb33c591f1ec629593d6adf47442e56e0f61996829ef7",
     "image-image-generation/agents/openai.yaml": "6734b881f87d75e60ad0a116316c007ca1c34952a67dc3d653d3fe61c57833e6",
     "image-image-generation/references/api-usage.md": "5f3269c322d13662b50372c8f3e3b9cdfcb2e4ef649cc3c139378661ab4ace59",
     "image-image-generation/references/delivery.md": "df36b5b5c2543721903418a1c1e312c21a29c7ced640ee7f486ffdde59fb7b31",
@@ -20,20 +23,17 @@
     "image-image-generation/references/prompting.md": "05b88f399ed16978588b43001cc28ebc03d883cc7a59b84faa538471f7e6a508",
     "image-image-generation/references/recovery.md": "36e7deaf8b0a5718c1ee00269a22a9b79538a65388ffe9356aeec200c4118097",
     "image-image-generation/references/updates.md": "2ed41e0077b70a6e76dc5cded2a575329769ba934622f7f0f1b9e67a93667851",
-    "image-image-generation/requirements.txt": "0cb612ba53c8d8a5e083545b9cf1cb78ed3acb87ef54b619e2eed468b9b3d15d",
+    "image-image-generation/requirements.txt": "53233e8dfbed17a27fb6404f34b68fe2a8d00d68c743c4e6f4ac073b2833bab2",
     "image-image-generation/scripts/generate_image.py": "98a058a703c94e25691a32b97e02d6b6ab4cf6639ecfd16475923e8c5db74b71",
-    "image-image-generation/scripts/image_errors.py": "88200b8bb790aabff25a532ae12a0c0a8a354b1ecc719b0c4ef788aaabdebfd7",
+    "image-image-generation/scripts/image_errors.py": "b84a4c01a0430ec5c45356af5455923ec6a7809df8d9ccb3b216317f2bcd7e37",
     "image-image-generation/scripts/native_delivery.py": "45617cba1bf357180e8a64a7d2a2485b97dbfc91920a513ee3dc6e79412fe897",
     "image-image-generation/scripts/package_skill.py": "6066d5fdb4bdfd3bd3cbe2809a61b737fb505749bc6bde54bf8b012b60df0893",
     "image-image-generation/tests/test_gemini_image.py": "ae677fa2a56e77b4e029fcbec897e0a520308d1c6da898f0a95e6cbeaa310033",
     "image-image-generation/tests/test_image_skill.py": "7176d58eec2a9f5b49e7d4e60497f7fa1aa49029eef9d1734f32307ddd3342c8",
     "image-image-generation/tests/test_native_delivery.py": "971bd207afc6f0393f5d8aeca7228da942490abe5661d5a8367b3151c6126ed9",
     "image-image-generation/tests/test_output_parallel.py": "6224f6de11d1dde9e6f6c1078f0a24848cab32831fb980a511c21ab3773c5d0d",
-    "install-codex.cmd": "9129ebf24defa8e3b9a91343834818abb807daf62ee77ab6db335d56ea2e6ab6",
+    "install-codex.cmd": "29bc566f6f16757eca88aef72ce830ad9c4b4a40232ab0100942be2e86d5aba7",
     "install-codex.sh": "5bf53923b540ea6403b1943436154915419c09535bf73b308727dacf7d2eef34",
     "install.py": "8a81f6636e1a2f887053ca70a4ccfdace06bcb08138aaf518ac787cbe27a146c"
-  },
-  "schema": 1,
-  "skill": "image-image-generation",
-  "version": "4.1.0"
+  }
 }
