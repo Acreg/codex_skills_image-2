@@ -1,4 +1,4 @@
-﻿GPT-image2图片生成工具 v4.1.2 · 安装说明
+﻿GPT-image2图片生成工具 v4.1.3 · 安装说明
 
 项目 GitHub：
 https://github.com/Acreg/codex_skills_image-2

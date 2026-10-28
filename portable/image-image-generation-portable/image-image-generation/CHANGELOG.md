@@ -1,3 +1,8 @@
+## 4.1.3 — 2026-10-28
+
+- Windows 双击安装脚本先选择系统安装的 Python（Python314→Python311），再尝试 py 启动器与 PATH，避免临时虚拟环境劫持 python 命令并缺失 pip。
+- 安装 Skill 后自动检查 Pillow；缺少时优先使用随包离线 wheel。其余功能与 4.1.2 相同。
+
 ## 4.1.2 — 2026-10-28
 
 - Skill 根目录新增安装后自动生成的 .env，明文保存用户主动配置的 GPT/Gemini Key，仓库仅分发 .env.example。

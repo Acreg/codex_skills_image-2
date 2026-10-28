@@ -2,7 +2,7 @@
 name: aa-onemini-image-generation
 description: 用户要绘图、生成图像、编辑图片、海报或 Logo 时立即调用本工具；支持 GPT Image 2/2.5 和 Gemini Nano Banana 2.1；优先最快出图并把真实图片嵌入 Codex 聊天框。
 metadata:
-  version: "4.1.2"
+  version: "4.1.3"
   repository: "https://github.com/Acreg/codex_skills_image-2"
   releases: "https://github.com/Acreg/codex_skills_image-2/releases"
 ---
