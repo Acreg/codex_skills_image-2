@@ -4,7 +4,7 @@
 
 ## 一键安装（跨电脑，无固定路径）
 
-从 [GitHub Releases](https://github.com/Acreg/codex_skills_image-2/releases/latest) 下载 **aa-onemini-image-generation-v4.0.1-portable.zip**（不要下载 GitHub 自动生成的 Source code 包）。解压后可把整个 **image-image-generation-portable** 文件夹放入当前用户的 **.codex** 目录，并从解压文件夹启动脚本。
+从 [GitHub Releases](https://github.com/Acreg/codex_skills_image-2/releases/latest) 下载 **aa-onemini-image-generation-v4.0.2-portable.zip**（不要下载 GitHub 自动生成的 Source code 包）。解压后可把整个 **image-image-generation-portable** 文件夹放入当前用户的 **.codex** 目录，并从解压文件夹启动脚本。
 
 | 平台 | 操作 |
 |---|---|
@@ -32,10 +32,11 @@ Windows 示例位置（仅为示例，不写死在脚本中）：**%USERPROFILE%
 
 - **python install.py --check**：离线校验，不修改安装位置。
 - **python install.py --skills-dir PATH**：指定另一个 skills 父目录。
-- 需要 Python 3.11+；Windows 优先使用 py 启动器，macOS/Linux 优先使用 python3。
+- 需要 Python 3.11+；Windows 优先使用可正常启动的 Python 3.11+，macOS/Linux 优先使用 python3。
 - 旧版备份保留在安装目录的父目录 **.image-skill-backups/**。需要回退时关闭 Codex 后自行恢复。
 - 如果 **.codex/skills** 和 **.agents/skills** 都已有同名 Skill，优先更新前者，不擅自删除另一份。
 
 仓库提供与 Release 一致的安装入口源码；图片生成主体位于 Release 便携包中。
+
 
 

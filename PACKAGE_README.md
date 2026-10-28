@@ -1,6 +1,6 @@
 # GPT-image2图片生成工具 · Codex 便携安装包
 
-版本：4.0.1。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
+版本：4.0.2。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
 
 ## 一键安装
 
@@ -36,5 +36,6 @@
 维护仓库：https://github.com/Acreg/codex_skills_image-2
 
 本包不包含用户密钥、会话、生成图片、专用配置或缓存。
+
 
 
