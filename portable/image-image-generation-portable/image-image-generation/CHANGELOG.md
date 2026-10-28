@@ -1,3 +1,10 @@
+## 4.1.2 — 2026-10-28
+
+- Skill 根目录新增安装后自动生成的 .env，明文保存用户主动配置的 GPT/Gemini Key，仓库仅分发 .env.example。
+- GPT 默认沿用 Codex 的 auth.json 和 config.toml；Gemini 独立读取 .env 的 Key/URL，兼容历史配置。
+- 安装器保留已有 .env，并保持原生 prepare/deliver 及真实图片直接嵌入聊天的交付规则。
+- 升级只改变配置发现流程，不新增每次生图前的网络请求。
+
 # 图片生成 Skill 交付修复
 
 ## 4.0.0 — 2026-09-11

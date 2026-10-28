@@ -32,6 +32,7 @@ class InstallerTests(unittest.TestCase):
             "install.py": (PACKAGE / "install.py").read_bytes(),
             "image-image-generation/SKILL.md": b"---\nname: aa-onemini-image-generation\n---\n",
             "image-image-generation/VERSION": b"4.0.1\n",
+            "image-image-generation/.env.example": b'OPENAI_API_KEY = ""\nGEMINI_API_KEY = ""\n',
             "image-image-generation/scripts/run.py": b"print('ready')\n",
         }
         for name, contents in files.items():
@@ -55,6 +56,7 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(installed["status"], "installed")
         self.assertEqual(Path(installed["target"]), self.codex_home / "skills" / installer.NAME)
         self.assertTrue((Path(installed["target"]) / "scripts/run.py").exists())
+        self.assertTrue((Path(installed["target"]) / ".env").is_file())
 
     def test_default_without_codex_home(self):
         with patch.dict(os.environ, {}, clear=True):
@@ -77,11 +79,13 @@ class InstallerTests(unittest.TestCase):
         (target / "user-settings.txt").write_text("retain", encoding="utf-8")
         (target / "fallback-config.local.json").write_text("local-only-test", encoding="utf-8")
         (target / "gemini-config.local.json").write_text("gemini-local-only", encoding="utf-8")
+        (target / ".env").write_text('GEMINI_API_KEY = "preserve-local-key"\n', encoding="utf-8")
         updated = installer.install(self.bundle, installer.default_skills_dir())
         self.assertEqual(updated["status"], "updated")
         self.assertEqual((Path(updated["backup"]) / "user-settings.txt").read_text(), "retain")
         self.assertEqual((target / "fallback-config.local.json").read_text(), "local-only-test")
         self.assertEqual((target / "gemini-config.local.json").read_text(), "gemini-local-only")
+        self.assertEqual((target / ".env").read_text(), 'GEMINI_API_KEY = "preserve-local-key"\n')
         self.assertEqual((target / "SKILL.md").read_bytes(), (self.bundle / installer.NAME / "SKILL.md").read_bytes())
 
     def test_legacy_location_updated_in_place(self):

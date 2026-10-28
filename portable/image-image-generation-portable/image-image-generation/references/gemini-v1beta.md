@@ -2,11 +2,27 @@
 
 首版支持的 Gemini 模型 ID：gemini-nano-banana-2.1。
 
+## 最快配置方式：Skill 根目录 .env
+
+安装脚本会在 Skill 根目录生成 .env（不上传 GitHub）。用编辑器直接填写：
+
+    OPENAI_API_KEY = ""
+    OPENAI_BASE_URL = ""
+
+    GEMINI_API_KEY = "你的 Gemini Key"
+    GEMINI_BASE_URL = "https://api.onemini.top/v1beta"
+
+GPT 留空时沿用 ~/.codex/auth.json 和 ~/.codex/config.toml 的原始凭据。
+Gemini 只使用自己的 Key；不需要用户在 PowerShell 设置环境变量，也无需每次生成前查询模型列表。
+本 Skill 也允许用户在 .env 显式填写独立 GPT Key 和主机，以覆盖 Codex 默认配置。
+历史 gemini-config.local.json 仍兼容，若 .env 没有指定 Gemini Key，使用该文件。
+图片生成后必须继续执行聊天图片嵌入流程，不能仅输出文件链接。
+
 ## 接口与认证
 
 - 模型列表：GET /v1beta/models，真实列出 Sub2API 所返回的模型；命令：python scripts/generate_image.py list-models
 - 生图：POST /v1beta/models/gemini-nano-banana-2.1:generateContent
-- **Gemini 专用凭据**：优先使用 GEMINI_API_KEY / GEMINI_BASE_URL。没有对应环境变量时读取
+- **Gemini 专用凭据**：优先使用 Skill 根目录 .env 中的 GEMINI_API_KEY / GEMINI_BASE_URL。没有对应配置时兼容读取
   image-image-generation/gemini-config.local.json（由 configure-gemini 从标准输入写入）；
   Gemini 不读取或复用 GPT 的 OPENAI_API_KEY / auth.json 凭据。
 - 两种协议可分别使用不同的 Sub2API Key，甚至不同的 API 提供商主机。

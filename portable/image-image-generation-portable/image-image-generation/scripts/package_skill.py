@@ -5,7 +5,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC_FILES = (
-    'SKILL.md', 'VERSION', 'requirements.txt', '.gitignore', '.gitattributes',
+    'SKILL.md', 'VERSION', 'requirements.txt', '.gitignore', '.gitattributes', '.env.example',
     'agents/openai.yaml', 'references/errors.md', 'references/fallback-setup.md',
     'scripts/generate_image.py', 'scripts/image_errors.py', 'scripts/package_skill.py',
     'tests/test_image_skill.py', 'tests/test_native_delivery.py',
@@ -13,7 +13,7 @@ PUBLIC_FILES = (
     'references/native-delivery.md', 'references/api-usage.md', 'references/monitoring.md',
     'references/models.md', 'references/prompting.md', 'references/delivery.md', 'references/recovery.md',
     'references/parallel.md', 'references/updates.md', 'tests/test_output_parallel.py',
-    'references/gemini-v1beta.md', 'tests/test_gemini_image.py',
+    'references/workflow.md', 'references/configuration.md', 'references/gemini-v1beta.md', 'tests/test_gemini_image.py', 'tests/test_skill_env.py',
 )
 
 

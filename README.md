@@ -1,8 +1,21 @@
 # Codex 图片生成 Skill：GPT-image2图片生成工具
 
-## Gemini Nano Banana 2.1 新版下载（当前开发分支）
 
-v4.1.1 可直接使用 [GPT-image2-gemini-nano-banana-2.1-v4.1.1-portable.zip](dist/GPT-image2-gemini-nano-banana-2.1-v4.1.1-portable.zip)。**解压后进入 image-image-generation-portable 目录，运行其中的 install-codex.cmd（Windows）或 sh ./install-codex.sh（macOS/Linux）**。
+**配置更新（v4.1.2）：** 安装后 Skill 根目录自动出现 .env，GPT 两项默认留空直接沿用 Codex 的 auth.json/config.toml，Gemini 在同一文件填写专用 Key。旧版将实际图片交付到聊天框的 prepare/deliver + Markdown 图片流程保留。
+
+## v4.1.2 一体化安装包：含 Python 基础环境
+
+正式 ZIP 内含 Windows x64 官方 Python 3.14.10 安装程序、Python 3.14 对应 Pillow 离线轮子、`安装说明.txt` 和一键安装入口 `安装图片Skill.cmd`。
+
+- **自己安装**：解压 ZIP → 如缺 Python，先双击 `python-installers/windows-x64/python-3.14.10-amd64.exe` → 再双击 `安装图片Skill.cmd`。
+- **交给 Codex**：把 ZIP 及路径交给 Codex，指示它按 `安装说明.txt` 解压、运行 `image-image-generation-portable/install.py`，安装到当前用户真实 CODEX_HOME。
+- **Key**：安装后 Skill 根目录自动生成明文 `.env`。GPT 两项留空时默认读取 Codex `auth.json` 和 `config.toml`，Gemini 只从自己的 Key 配置读取。
+- **聊天交付**：`SKILL.md` 已优化为先执行图片生成；原版精确 `prepare/deliver` 和 Markdown 真实图片嵌入流程保留在 `references/workflow.md`，绝不退化为只返回文件路径。
+- **其他平台**：macOS/Linux 可用包内安装脚本，但 Python EXE 与离线 Pillow 轮子仅针对 Windows x64。
+
+## GPT Image + Nano Banana 2.1 最新版下载
+
+v4.1.2 可直接使用 [GPT-image2-gemini-nano-banana-2.1-v4.1.2-portable.zip](dist/GPT-image2-gemini-nano-banana-2.1-v4.1.2-portable.zip)。**解压后进入 image-image-generation-portable 目录，运行其中的 install-codex.cmd（Windows）或 sh ./install-codex.sh（macOS/Linux）**。
 
 新功能支持 Sub2API GET /v1beta/models 和 POST /v1beta/models/gemini-nano-banana-2.1:generateContent。可查看 [Gemini 参数与用法](portable/image-image-generation-portable/image-image-generation/references/gemini-v1beta.md)。
 
@@ -15,7 +28,7 @@ Windows x64 电脑如缺少 Python 3.11+，本分支亦保留 [Python 3.14.10 �
 
 ## 一键安装（跨电脑，无固定路径）
 
-从 [GitHub Releases](https://github.com/Acreg/codex_skills_image-2/releases/latest) 下载 **GPT-image2-gemini-nano-banana-2.1-v4.1.1-portable.zip**（不要下载 GitHub 自动生成的 Source code 包）。解压后可把整个 **image-image-generation-portable** 文件夹放入当前用户的 **.codex** 目录，并从解压文件夹启动脚本。
+从 [GitHub Releases](https://github.com/Acreg/codex_skills_image-2/releases/latest) 下载 **GPT-image2-gemini-nano-banana-2.1-v4.1.2-portable.zip**（不要下载 GitHub 自动生成的 Source code 包）。解压后可把整个 **image-image-generation-portable** 文件夹放入当前用户的 **.codex** 目录，并从解压文件夹启动脚本。
 
 | 平台 | 操作 |
 |---|---|

@@ -1,18 +1,18 @@
 # GPT-image2图片生成工具 · Codex 便携安装包
 
-版本：4.1.1。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
+版本：4.1.2。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
 
 ## 一键安装
 
 可把整个解压文件夹 **image-image-generation-portable** 放在当前用户的 **.codex** 目录中，直接从该文件夹运行安装入口：
 
-- Windows：双击 **install-codex.cmd**
+- Windows：解压完整 Release ZIP 后优先双击根目录 **安装图片Skill.cmd**；只有本便携目录时双击 **install-codex.cmd**
 - macOS / Linux：运行 **sh ./install-codex.sh**
 - 通用命令行：Python 3.11+，运行 **python install.py**
 
 脚本会读取 **CODEX_HOME**，未设置时使用当前用户的 **~/.codex/skills/**。如果只有 **~/.agents/skills/image-image-generation** 存在，会更新原有位置，不再创建重复目录。
 
-旧版本会自动备份到相同 skills 父目录下的 **.image-skill-backups/**；同版本内容一致直接跳过。安装全过程离线进行，不访问图片 API，不读取密钥，也不产生图片生成费用。安装后重新启动 Codex 即可使用。
+旧版本会自动备份到相同 skills 父目录下的 **.image-skill-backups/**；同版本内容一致直接跳过。安装全过程离线进行，不访问图片 API，不读取密钥，也不产生图片生成费用。安装时自动创建 .env 空白模板，更新时保留用户填写的 .env。安装后重新启动 Codex 即可使用。
 
 需要预先验证安装包时，运行 **python install.py --check**。
 
@@ -47,20 +47,24 @@
 
 图片生成时需要 Pillow>=10；若 Python 尚未安装 Pillow，按 Skill requirements.txt 安装即可（python -m pip install "Pillow>=10"）。安装器本身离线，不会自动下载依赖。
 
-## GPT 与 Gemini 不同密钥
+## 根目录 .env 配置（v4.1.2）
 
-GPT Image 保持原来的 OPENAI_API_KEY 和 OPENAI_BASE_URL 或 Codex auth.json / config.toml；
-Gemini 使用 GEMINI_API_KEY 和 GEMINI_BASE_URL，或者专用本地配置
-image-image-generation/gemini-config.local.json。Gemini 不会使用 GPT 的 Key。
+安装后将看到 image-image-generation/.env（与 SKILL.md 同级）。
+直接用记事本、VS Code 或智能体编辑即可，**不必运行 PowerShell 环境变量命令**。
 
-可以将 Gemini Key 和地址作为环境变量传入：
+    OPENAI_API_KEY = ""
+    OPENAI_BASE_URL = ""
 
-    GEMINI_API_KEY=<你自己的 Gemini 或 Sub2API Key>
-    GEMINI_BASE_URL=https://api.onemini.top/v1beta
+    GEMINI_API_KEY = ""
+    GEMINI_BASE_URL = "https://api.onemini.top/v1beta"
 
-也可以使用 configure-gemini 命令从标准输入保存 JSON，避免把 Key 放在命令行参数中：
+GPT Image 两项留空，默认读取当前 Codex 的 auth.json（GPT Key）和 config.toml（Base URL）。
+如果要换成其他 GPT Key，在 .env 显式填入即可。
+Gemini 需要填写独立的 GEMINI_API_KEY；不会窃取或借用 GPT Key，也支持另一 API 地址。
+历史 gemini-config.local.json 仍被兼容读取，不强制迁移。升级时 .env 原样保留。
 
-    python image-image-generation/scripts/generate_image.py configure-gemini
+图片生成依旧保存于项目 output/imagegen/，并将实际图片嵌入聊天框；原生图片工具的
+prepare、deliver 及精确调用恢复流程不变。
 
-标准输入 JSON 形如：{"api_key":"<你的 Gemini Key>","base_url":"https://api.onemini.top/v1beta"}。
-已经保存的本地 Gemini 和 GPT 配置都会在升级中保留。使用 list-models 实际查询 Gemini /v1beta/models，不需要先配置 GPT Key。
+
+完整 Release 还附带官方 Windows x64 Python 3.14.10 离线 EXE、Pillow cp314 wheel 和安装说明.txt；跨平台使用原便携目录 install-codex.sh。旧版聊天图片交付流程完整保留在 image-image-generation/references/workflow.md。

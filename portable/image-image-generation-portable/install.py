@@ -83,6 +83,9 @@ def install(root: Path, skills_dir: Path) -> dict[str, str]:
     if target.is_symlink() or (target.exists() and not target.is_dir()):
         raise ValueError("Existing Skill path is not a regular directory: " + str(target))
     if same_version(target, root, entries):
+        env_file = target / ".env"
+        if not env_file.exists():
+            shutil.copy2(root / NAME / ".env.example", env_file)
         return {"status": "already_installed", "skill": NAME, "target": str(target)}
 
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -91,10 +94,12 @@ def install(root: Path, skills_dir: Path) -> dict[str, str]:
         staged = Path(temporary) / NAME
         shutil.copytree(root / NAME, staged)
         # Keep the user's optional local API settings usable after an upgrade.
-        for name in ("fallback-config.local.json", "gemini-config.local.json"):
+        for name in (".env", "fallback-config.local.json", "gemini-config.local.json"):
             local_config = target / name
             if target.is_dir() and local_config.is_file():
                 shutil.copy2(local_config, staged / name)
+        if not (staged / ".env").exists():
+            shutil.copy2(staged / ".env.example", staged / ".env")
         if target.exists():
             backup_dir = target.parent / ".image-skill-backups"
             backup_dir.mkdir(parents=True, exist_ok=True)

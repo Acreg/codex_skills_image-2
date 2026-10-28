@@ -28,7 +28,7 @@ from typing import Any
 
 from image_errors import ApiError, ConfigError, SkillError, redact, upstream_error
 
-VERSION = "4.1.1"
+VERSION = "4.1.2"
 DEFAULT_MODEL = "gpt-image-2.5-flare"
 GEMINI_MODEL = "gemini-nano-banana-2.1"
 GEMINI_IMAGE_SIZES = ("1K", "2K", "4K")
@@ -81,6 +81,8 @@ FALLBACK_PATH = SKILL_ROOT / "fallback-config.local.json"
 FALLBACK_BASE_URL = "https://api.openai.com"
 GEMINI_CONFIG_PATH = SKILL_ROOT / "gemini-config.local.json"
 GEMINI_DEFAULT_BASE_URL = "https://api.onemini.top/v1beta"
+SKILL_ENV_PATH = SKILL_ROOT / ".env"
+SKILL_ENV_KEYS = frozenset(("OPENAI_API_KEY", "OPENAI_BASE_URL", "GEMINI_API_KEY", "GEMINI_BASE_URL"))
 
 
 @dataclass(frozen=True)
@@ -108,6 +110,33 @@ def read_toml(path: Path) -> dict[str, Any]:
     except (OSError, tomllib.TOMLDecodeError) as exc:
         raise ConfigError(f"Unable to read Codex config: {path}") from exc
     return value if isinstance(value, dict) else {}
+
+
+def read_skill_env() -> dict[str, str]:
+    """Read the local Skill .env directly, without modifying process environment."""
+    if not SKILL_ENV_PATH.is_file():
+        return {}
+    try:
+        lines = SKILL_ENV_PATH.read_text(encoding="utf-8-sig").splitlines()
+    except OSError as exc:
+        raise ConfigError("无法读取 Skill 根目录 .env") from exc
+    values: dict[str, str] = {}
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            raise ConfigError(".env 配置格式错误；请使用 KEY = \"value\"")
+        name, value = line.split("=", 1)
+        name, value = name.strip(), value.strip()
+        if name not in SKILL_ENV_KEYS:
+            continue
+        if value.startswith(('"', "'")):
+            if len(value) < 2 or value[-1] != value[0]:
+                raise ConfigError(".env 字符串引号不完整")
+            value = value[1:-1]
+        values[name] = value
+    return values
 
 
 def config_base_url(home: Path) -> tuple[str | None, str | None]:
@@ -159,25 +188,18 @@ def normalize_base_url(value: str, *, https_only: bool = False) -> str:
 
 
 def discover_api_config(home: Path) -> ApiConfig:
-    env_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if env_key:
-        api_key = env_key
-        credential_source = "environment"
-    else:
-        api_key = auth_file_key(home) or ""
-        credential_source = "auth.json" if api_key else "missing"
+    values = read_skill_env()
+    local_key = values.get("OPENAI_API_KEY", "").strip()
+    codex_key = auth_file_key(home) if not local_key else None
+    environment_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    api_key = local_key or codex_key or environment_key
+    credential_source = ".env" if local_key else "auth.json" if codex_key else "environment" if environment_key else "missing"
 
-    env_url = os.environ.get("OPENAI_BASE_URL", "").strip()
     configured_url, provider_name = config_base_url(home)
-    if env_url:
-        base_url = env_url
-        endpoint_source = "environment"
-    elif configured_url:
-        base_url = configured_url
-        endpoint_source = "config.toml"
-    else:
-        base_url = DEFAULT_BASE_URL
-        endpoint_source = "official-default"
+    local_url = values.get("OPENAI_BASE_URL", "").strip()
+    environment_url = os.environ.get("OPENAI_BASE_URL", "").strip()
+    base_url = local_url or configured_url or environment_url or DEFAULT_BASE_URL
+    endpoint_source = ".env" if local_url else "config.toml" if configured_url else "environment" if environment_url else "official-default"
 
     if not api_key:
         raise ConfigError(
@@ -317,35 +339,35 @@ def configure_gemini(value: Any, *, replace: bool = False) -> dict[str, Any]:
 
 def discover_gemini_config(home: Path) -> ApiConfig:
     """Independent Gemini key; optional per-provider URL, never reuse the GPT key."""
+    values = read_skill_env()
+    file_key = values.get("GEMINI_API_KEY", "").strip()
+    file_url = values.get("GEMINI_BASE_URL", "").strip()
+    local = load_gemini_config() if not file_key else None
     environment_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    environment_url = os.environ.get("GEMINI_BASE_URL", "").strip()
-    local = load_gemini_config()
-    key = environment_key or (local.api_key if local else "")
+    key = file_key or (local.api_key if local else "") or environment_key
     if not key:
-        raise ConfigError("Gemini 未配置 Key；请设置 GEMINI_API_KEY 或运行 configure-gemini。不会复用 GPT API Key")
-    # A shared Sub2API host is normal, but choosing it does not share credentials.
-    configured_url, _ = config_base_url(home) if not (environment_url or local) else (None, None)
-    base_url = (environment_url or (local.base_url if local else "")
-                or os.environ.get("OPENAI_BASE_URL", "").strip() or configured_url
-                or GEMINI_DEFAULT_BASE_URL)
+        raise ConfigError("Gemini 未配置 Key；请编辑 Skill 根目录 .env 的 GEMINI_API_KEY。不会复用 GPT API Key")
+    configured_url, _ = config_base_url(home) if not file_url and not local else (None, None)
+    environment_url = os.environ.get("GEMINI_BASE_URL", "").strip()
+    base_url = ((local.base_url if local else "") or file_url or environment_url
+                or configured_url or GEMINI_DEFAULT_BASE_URL)
     return ApiConfig(
         base_url=normalize_gemini_base_url(base_url),
         api_key=key,
-        endpoint_source="GEMINI_BASE_URL" if environment_url else "gemini-config" if local else "codex-provider" if configured_url else "default",
-        credential_source="GEMINI_API_KEY" if environment_key else "gemini-config",
+        endpoint_source="gemini-config" if local else ".env" if file_url else "environment" if environment_url else "codex-provider" if configured_url else "default",
+        credential_source=".env" if file_key else "gemini-config" if local else "environment",
     )
 
 
 def gemini_config_report() -> dict[str, Any]:
-    available = bool(os.environ.get("GEMINI_API_KEY", "").strip())
-    try:
-        stored = load_gemini_config()
-    except ConfigError:
-        return {"available": available, "credential_source": "GEMINI_API_KEY" if available else "invalid-gemini-config"}
+    values = read_skill_env()
+    file_key = bool(values.get("GEMINI_API_KEY", "").strip())
+    environment_key = bool(os.environ.get("GEMINI_API_KEY", "").strip())
+    stored = load_gemini_config() if not file_key else None
     return {
-        "available": available or stored is not None,
-        "credential_source": "GEMINI_API_KEY" if available else "gemini-config" if stored else "missing",
-        "endpoint_source": "GEMINI_BASE_URL" if os.environ.get("GEMINI_BASE_URL", "").strip() else "gemini-config" if stored else "existing-provider",
+        "available": file_key or stored is not None or environment_key,
+        "credential_source": ".env" if file_key else "gemini-config" if stored else "environment" if environment_key else "missing",
+        "endpoint_source": "gemini-config" if stored else ".env" if values.get("GEMINI_BASE_URL", "").strip() else "environment" if os.environ.get("GEMINI_BASE_URL", "").strip() else "codex-provider",
     }
 
 
@@ -711,13 +733,16 @@ def fallback_report() -> dict[str, Any]:
 
 
 def existing_config_report(home: Path) -> dict[str, Any]:
+    values = read_skill_env()
     configured_url, provider_name = config_base_url(home)
+    local_url = values.get("OPENAI_BASE_URL", "").strip()
     env_url = os.environ.get("OPENAI_BASE_URL", "").strip()
-    endpoint = env_url or configured_url or DEFAULT_BASE_URL
+    endpoint = local_url or configured_url or env_url or DEFAULT_BASE_URL
+    local_key = bool(values.get("OPENAI_API_KEY", "").strip())
     env_key = bool(os.environ.get("OPENAI_API_KEY", "").strip())
     file_key = False
     auth_error = None
-    if not env_key:
+    if not local_key:
         try:
             file_key = bool(auth_file_key(home))
         except ConfigError as exc:
@@ -734,12 +759,12 @@ def existing_config_report(home: Path) -> dict[str, Any]:
             "requires_auth_json": False,
         },
         "api_mode": {
-            "available": env_key or file_key,
-            "credential_source": "environment" if env_key else "auth.json" if file_key else "missing",
-            "endpoint_source": "environment" if env_url else "config.toml" if configured_url else "official-default",
+            "available": local_key or file_key or env_key,
+            "credential_source": ".env" if local_key else "auth.json" if file_key else "environment" if env_key else "missing",
+            "endpoint_source": ".env" if local_url else "config.toml" if configured_url else "environment" if env_url else "official-default",
             "endpoint_host": endpoint_host(normalize_base_url(endpoint)),
             "base_url": normalize_base_url(endpoint),
-            "credential_status": "configured" if env_key or file_key else "missing",
+            "credential_status": "configured" if local_key or file_key or env_key else "missing",
             "provider": provider_name,
             "auth_error": auth_error,
         },
