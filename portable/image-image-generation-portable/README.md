@@ -1,6 +1,6 @@
 # GPT-image2图片生成工具 · Codex 便携安装包
 
-版本：4.1.0。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
+版本：4.1.1。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
 
 ## 一键安装
 
@@ -46,3 +46,21 @@
 新增 gemini-nano-banana-2.1，通过 Sub2API /v1beta/models 查询真实模型，使用 /v1beta/models/gemini-nano-banana-2.1:generateContent 生图，原有 GPT Image 功能不变。详细用法见 image-image-generation/references/gemini-v1beta.md。
 
 图片生成时需要 Pillow>=10；若 Python 尚未安装 Pillow，按 Skill requirements.txt 安装即可（python -m pip install "Pillow>=10"）。安装器本身离线，不会自动下载依赖。
+
+## GPT 与 Gemini 不同密钥
+
+GPT Image 保持原来的 OPENAI_API_KEY 和 OPENAI_BASE_URL 或 Codex auth.json / config.toml；
+Gemini 使用 GEMINI_API_KEY 和 GEMINI_BASE_URL，或者专用本地配置
+image-image-generation/gemini-config.local.json。Gemini 不会使用 GPT 的 Key。
+
+可以将 Gemini Key 和地址作为环境变量传入：
+
+    GEMINI_API_KEY=<你自己的 Gemini 或 Sub2API Key>
+    GEMINI_BASE_URL=https://api.onemini.top/v1beta
+
+也可以使用 configure-gemini 命令从标准输入保存 JSON，避免把 Key 放在命令行参数中：
+
+    python image-image-generation/scripts/generate_image.py configure-gemini
+
+标准输入 JSON 形如：{"api_key":"<你的 Gemini Key>","base_url":"https://api.onemini.top/v1beta"}。
+已经保存的本地 Gemini 和 GPT 配置都会在升级中保留。使用 list-models 实际查询 Gemini /v1beta/models，不需要先配置 GPT Key。

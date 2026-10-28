@@ -28,7 +28,7 @@ from typing import Any
 
 from image_errors import ApiError, ConfigError, SkillError, redact, upstream_error
 
-VERSION = "4.1.0"
+VERSION = "4.1.1"
 DEFAULT_MODEL = "gpt-image-2.5-flare"
 GEMINI_MODEL = "gemini-nano-banana-2.1"
 GEMINI_IMAGE_SIZES = ("1K", "2K", "4K")
@@ -79,6 +79,8 @@ DEFAULT_BASE_URL = "https://api.openai.com/v1"
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 FALLBACK_PATH = SKILL_ROOT / "fallback-config.local.json"
 FALLBACK_BASE_URL = "https://api.openai.com"
+GEMINI_CONFIG_PATH = SKILL_ROOT / "gemini-config.local.json"
+GEMINI_DEFAULT_BASE_URL = "https://api.onemini.top/v1beta"
 
 
 @dataclass(frozen=True)
@@ -267,6 +269,84 @@ def gemini_base_url(base_url: str) -> str:
     if base.endswith("/v1beta"):
         return base
     return base + "/v1beta"
+
+
+def normalize_gemini_base_url(value: str, *, https_only: bool = False) -> str:
+    base = value.strip().rstrip("/")
+    if base.endswith("/v1beta"):
+        base = base[:-7] + "/v1"
+    return gemini_base_url(normalize_base_url(base, https_only=https_only))
+
+
+def validate_gemini_config(value: Any) -> ApiConfig:
+    if not isinstance(value, dict):
+        raise ConfigError("Gemini 专用配置必须为 JSON 对象")
+    key = value.get("api_key")
+    if not isinstance(key, str) or not key.strip() or any(not 33 <= ord(ch) <= 126 for ch in key.strip()):
+        raise ConfigError("Gemini api_key 必须是非空 ASCII 字符串")
+    url = normalize_gemini_base_url(value.get("base_url", GEMINI_DEFAULT_BASE_URL), https_only=True)
+    return ApiConfig(url, key.strip(), "gemini-config", "gemini-config")
+
+
+def load_gemini_config() -> ApiConfig | None:
+    if not GEMINI_CONFIG_PATH.is_file():
+        return None
+    try:
+        obj = json.loads(GEMINI_CONFIG_PATH.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConfigError("无法读取 Gemini 独立配置文件") from exc
+    if not isinstance(obj, dict) or obj.get("version") != 1:
+        raise ConfigError("Gemini 独立配置文件版本不受支持")
+    return validate_gemini_config(obj)
+
+
+def configure_gemini(value: Any, *, replace: bool = False) -> dict[str, Any]:
+    config = validate_gemini_config(value)
+    if GEMINI_CONFIG_PATH.exists() and not replace:
+        raise ConfigError("Gemini 配置已存在；需要更新时使用 --replace-config")
+    body = json.dumps({"version": 1, "base_url": config.base_url, "api_key": config.api_key},
+                      ensure_ascii=False, indent=2).encode("utf-8")
+    try:
+        atomic_write(GEMINI_CONFIG_PATH, body, replace=replace)
+    except OSError as exc:
+        raise ConfigError("无法写入 Gemini 独立配置") from exc
+    return {"status": "saved", "version": VERSION, "provider": "gemini",
+            "base_url": config.base_url, "config_path": str(GEMINI_CONFIG_PATH),
+            "credential_status": "configured"}
+
+
+def discover_gemini_config(home: Path) -> ApiConfig:
+    """Independent Gemini key; optional per-provider URL, never reuse the GPT key."""
+    environment_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    environment_url = os.environ.get("GEMINI_BASE_URL", "").strip()
+    local = load_gemini_config()
+    key = environment_key or (local.api_key if local else "")
+    if not key:
+        raise ConfigError("Gemini 未配置 Key；请设置 GEMINI_API_KEY 或运行 configure-gemini。不会复用 GPT API Key")
+    # A shared Sub2API host is normal, but choosing it does not share credentials.
+    configured_url, _ = config_base_url(home) if not (environment_url or local) else (None, None)
+    base_url = (environment_url or (local.base_url if local else "")
+                or os.environ.get("OPENAI_BASE_URL", "").strip() or configured_url
+                or GEMINI_DEFAULT_BASE_URL)
+    return ApiConfig(
+        base_url=normalize_gemini_base_url(base_url),
+        api_key=key,
+        endpoint_source="GEMINI_BASE_URL" if environment_url else "gemini-config" if local else "codex-provider" if configured_url else "default",
+        credential_source="GEMINI_API_KEY" if environment_key else "gemini-config",
+    )
+
+
+def gemini_config_report() -> dict[str, Any]:
+    available = bool(os.environ.get("GEMINI_API_KEY", "").strip())
+    try:
+        stored = load_gemini_config()
+    except ConfigError:
+        return {"available": available, "credential_source": "GEMINI_API_KEY" if available else "invalid-gemini-config"}
+    return {
+        "available": available or stored is not None,
+        "credential_source": "GEMINI_API_KEY" if available else "gemini-config" if stored else "missing",
+        "endpoint_source": "GEMINI_BASE_URL" if os.environ.get("GEMINI_BASE_URL", "").strip() else "gemini-config" if stored else "existing-provider",
+    }
 
 
 def gemini_json_body(prompt: str, images: list[Path], aspect_ratio: str | None,
@@ -684,7 +764,7 @@ class SafeArgumentParser(argparse.ArgumentParser):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = SafeArgumentParser(description="One-command GPT Image generation/edit with direct project output")
-    parser.add_argument("command", choices=("run", "generate", "edit", "list-models", "config-check", "version", "configure-fallback", "recover-native"))
+    parser.add_argument("command", choices=("run", "generate", "edit", "list-models", "config-check", "version", "configure-fallback", "configure-gemini", "recover-native"))
     parser.add_argument("--prompt", help="Generation or edit instruction")
     parser.add_argument("--image", action="append", help="Input image for edit; may be repeated")
     parser.add_argument("--preset", choices=tuple(PRESET_OPTIONS), default=None, help="auto, fast, final, text-heavy, or benchmark-t2i")
@@ -720,9 +800,10 @@ def main() -> int:
             return 0
         if args.command == "config-check":
             report = {"version": VERSION, "fallback_mode": fallback_report()} if args.config_source == "fallback" else config_report((args.config_home or codex_home()).expanduser().resolve())
+            report["gemini_mode"] = gemini_config_report()
             print(json.dumps(report, ensure_ascii=False))
             return 0
-        if args.command == "configure-fallback":
+        if args.command in ("configure-fallback", "configure-gemini"):
             try:
                 raw_config = sys.stdin.read(16385)
                 if len(raw_config) > 16384:
@@ -730,7 +811,10 @@ def main() -> int:
                 value = json.loads(raw_config)
             except (json.JSONDecodeError, UnicodeError) as exc:
                 raise ConfigError("标准输入须提供 JSON 配置对象，未回显输入内容") from exc
-            print(json.dumps(configure_fallback(value, replace=args.replace_config), ensure_ascii=False))
+            configured = (configure_gemini(value, replace=args.replace_config)
+                          if args.command == "configure-gemini" else
+                          configure_fallback(value, replace=args.replace_config))
+            print(json.dumps(configured, ensure_ascii=False))
             return 0
         if args.command == "recover-native":
             if not args.session_file or not args.call_id or not args.out:
@@ -740,9 +824,9 @@ def main() -> int:
             print(json.dumps(recover_native(args.session_file, args.call_id, output, force=args.force), ensure_ascii=False))
             return 0
         if args.command == "list-models":
-            config = load_fallback() if args.config_source == "fallback" else discover_api_config((args.config_home or codex_home()).expanduser().resolve())
+            config = discover_gemini_config((args.config_home or codex_home()).expanduser().resolve())
             active_key = config.api_key
-            result = api_request(gemini_base_url(config.base_url) + "/models", config.api_key, method="GET")
+            result = api_request(config.base_url + "/models", config.api_key, method="GET")
             if not isinstance(result.get("models"), list):
                 raise ApiError("Gemini 模型列表响应缺少 models 数组", category="invalid_response")
             print(json.dumps({"models": result["models"], "nextPageToken": result.get("nextPageToken"),
@@ -766,13 +850,16 @@ def main() -> int:
             raise ConfigError("Gemini 不支持 OpenAI --quality/--size/--background；请用 --aspect-ratio 和 --image-size")
         image_runtime()  # Check dependency before a possibly billable POST.
         output = ensure_output(args.out or default_output(selected_model, selected_output_format), args.force)
-        config = load_fallback() if args.config_source == "fallback" else discover_api_config((args.config_home or codex_home()).expanduser().resolve())
+        home = (args.config_home or codex_home()).expanduser().resolve()
+        config = (discover_gemini_config(home) if selected_model == GEMINI_MODEL
+                  else load_fallback() if args.config_source == "fallback"
+                  else discover_api_config(home))
         active_key = config.api_key
         if selected_model == GEMINI_MODEL:
             paths = [Path(value).expanduser().resolve() for value in (args.image or [])]
             body = gemini_json_body(prompt, paths, args.aspect_ratio, args.image_size,
                                     args.thinking_level, args.google_search, args.image_only)
-            route_url = f"{gemini_base_url(config.base_url)}/models/{GEMINI_MODEL}:generateContent"
+            route_url = f"{config.base_url}/models/{GEMINI_MODEL}:generateContent"
             operation = "edit" if paths else "generate"
             content_type = "application/json; charset=utf-8"
         elif operation == "generate":

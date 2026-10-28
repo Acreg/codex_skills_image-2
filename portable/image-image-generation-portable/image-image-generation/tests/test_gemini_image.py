@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import generate_image as g
+REAL_DISCOVER_GEMINI = g.discover_gemini_config
 from PIL import Image
 
 
@@ -63,10 +64,10 @@ class GeminiTests(unittest.TestCase):
         self.addCleanup(self.server.shutdown)
         thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         thread.start()
-        config = g.ApiConfig(base_url=f"http://127.0.0.1:{self.server.server_port}/v1",
+        config = g.ApiConfig(base_url=f"http://127.0.0.1:{self.server.server_port}/v1beta",
                              api_key="SYNTHETIC_TEST_KEY", endpoint_source="test",
                              credential_source="test")
-        self.discover = patch.object(g, "discover_api_config", return_value=config)
+        self.discover = patch.object(g, "discover_gemini_config", return_value=config)
         self.discover.start()
         self.addCleanup(self.discover.stop)
 
@@ -76,6 +77,54 @@ class GeminiTests(unittest.TestCase):
                 contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
             result = g.main()
         return result, output.getvalue(), errors.getvalue()
+
+    def test_independent_keys_and_urls(self):
+        home = self.root / "codex-home"
+        home.mkdir()
+        local = self.root / "gemini-config.local.json"
+        with patch.object(g, "GEMINI_CONFIG_PATH", local):
+            g.configure_gemini({"api_key": "LOCAL_GEMINI_KEY", "base_url": "https://gemini.example/v1beta"})
+            with patch.dict(g.os.environ, {
+                "OPENAI_API_KEY": "GPT_ONLY_KEY", "OPENAI_BASE_URL": "https://gpt.example/v1",
+                "GEMINI_API_KEY": "ENV_GEMINI_KEY", "GEMINI_BASE_URL": "https://gemini.example/v1beta"
+            }, clear=True):
+                config = REAL_DISCOVER_GEMINI(home)
+                self.assertEqual(config.api_key, "ENV_GEMINI_KEY")
+                self.assertEqual(config.base_url, "https://gemini.example/v1beta")
+                self.assertNotEqual(config.api_key, "GPT_ONLY_KEY")
+            with patch.dict(g.os.environ, {"OPENAI_API_KEY": "GPT_ONLY_KEY"}, clear=True):
+                config = REAL_DISCOVER_GEMINI(home)
+                self.assertEqual(config.api_key, "LOCAL_GEMINI_KEY")
+                self.assertEqual(config.base_url, "https://gemini.example/v1beta")
+
+    def test_gemini_missing_key_does_not_reuse_gpt_key(self):
+        with patch.object(g, "GEMINI_CONFIG_PATH", self.root / "missing-gemini.json"), patch.dict(
+            g.os.environ, {"OPENAI_API_KEY": "GPT_ONLY_KEY", "OPENAI_BASE_URL": "https://gpt.example/v1"}, clear=True
+        ):
+            with self.assertRaises(g.ConfigError) as error:
+                REAL_DISCOVER_GEMINI(self.root)
+            self.assertIn("不会复用 GPT", str(error.exception))
+
+    def test_gpt_model_uses_gpt_key(self):
+        gpt = g.ApiConfig("http://127.0.0.1:1234/v1", "GPT_ONLY_KEY", "test", "test")
+        with patch.object(g, "discover_api_config", return_value=gpt), patch.object(
+            g, "api_request", return_value={"data": [{"b64_json": base64.b64encode(self.png).decode()}]}
+        ) as request:
+            code, raw, error = self.cli(["run", "--model", "gpt-image-2.5-flare",
+                                         "--prompt", "gpt test", "--out", str(self.root / "gpt.png")])
+        self.assertEqual(code, 0, error)
+        self.assertEqual(request.call_args.args[0], "http://127.0.0.1:1234/v1/images/generations")
+        self.assertEqual(request.call_args.args[1], "GPT_ONLY_KEY")
+
+    def test_configure_gemini_cli_uses_stdin(self):
+        local = self.root / "gemini-only.json"
+        data = json.dumps({"api_key": "GEMINI_ONLY_SECRET", "base_url": "https://api.onemini.top/v1beta"})
+        with patch.object(g, "GEMINI_CONFIG_PATH", local), patch.object(sys, "stdin", io.StringIO(data)):
+            code, raw, error = self.cli(["configure-gemini"])
+        self.assertEqual(code, 0, error)
+        self.assertEqual(json.loads(raw)["status"], "saved")
+        self.assertTrue(local.is_file())
+        self.assertNotIn("GEMINI_ONLY_SECRET", raw + error)
 
     def test_native_generate_and_parameters(self):
         path = self.root / "result.png"

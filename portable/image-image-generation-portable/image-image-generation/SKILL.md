@@ -2,7 +2,7 @@
 name: aa-onemini-image-generation
 description: 用户要求生成、绘制、设计、编辑、修图，或询问 GPT-image2图片生成工具 如何使用时使用；支持 Onemini API、GPT Image 2/2.5、Gemini Nano Banana 2.1、透明 PNG/WebP、项目落盘和聊天图片交付。
 metadata:
-  version: "4.1.0"
+  version: "4.1.1"
   repository: "https://github.com/Acreg/codex_skills_image-2"
   releases: "https://github.com/Acreg/codex_skills_image-2/releases"
 ---
@@ -96,7 +96,7 @@ metadata:
 
 支持 --aspect-ratio、--image-size（1K/2K/4K）、--thinking-level（minimal/medium/high）、--google-search、--image-only 以及重复 --image 参考图。Gemini 不接受 OpenAI 独有的 quality、size 和 background 参数。--output-format 仅在本地转换图片格式，不能宣称上游支持透明底或输出格式指定。
 
-沿用原 Codex Base URL 和 API Key，自动将 /v1 切换为 /v1beta。Sub2API Gemini 分组、模型白名单及允许图片生成规则仍按服务器实际配置生效。不需要额外开发解锁开关。返回图片读取 candidates[].content.parts[].inlineData，含多图时全部保存，真实图片交付后完成。
+Gemini 使用 GEMINI_API_KEY / GEMINI_BASE_URL 或 configure-gemini 保存的独立 Gemini Key；没有 Gemini Key 则如实报错，绝不回退使用 GPT 的 OPENAI_API_KEY。若没有单独指定地址，可沿用现有 Codex 服务商主机，再切换 /v1 到 /v1beta。Sub2API Gemini 分组、模型白名单及允许图片生成规则仍按服务器实际配置生效。不需要额外开发解锁开关。返回图片读取 candidates[].content.parts[].inlineData，含多图时全部保存，真实图片交付后完成。
 
 详细请求示例：[Gemini Native](references/gemini-v1beta.md)。
 

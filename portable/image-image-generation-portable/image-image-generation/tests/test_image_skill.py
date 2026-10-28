@@ -608,8 +608,8 @@ class SkillTests(unittest.TestCase):
         for model in g.SUPPORTED_MODELS:
             self.assertIn(model, skill)
             self.assertIn(model, models)
-        self.assertEqual((root / "VERSION").read_text(encoding="utf-8").strip(), "4.1.0")
-        self.assertEqual(g.VERSION, "4.1.0")
+        self.assertEqual((root / "VERSION").read_text(encoding="utf-8").strip(), "4.1.1")
+        self.assertEqual(g.VERSION, "4.1.1")
 
 if __name__ == '__main__':
     unittest.main()

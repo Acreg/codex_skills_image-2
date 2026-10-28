@@ -48,3 +48,6 @@
 ## Gemini Nano Banana 2.1
 
 本 Skill 另外支持 gemini-nano-banana-2.1，通过 Sub2API /v1beta/models/gemini-nano-banana-2.1:generateContent 转发，而非 OpenAI Images。可设置 aspectRatio、imageSize (1K/2K/4K)、thinkingLevel、Google Search、imageOnly 与重复参考图。--output-format 是本地转码。详见 [Gemini Native](gemini-v1beta.md)。
+
+密钥隔离：GPT Image 使用 OPENAI_API_KEY，Gemini Nano Banana 使用 GEMINI_API_KEY
+或通过 configure-gemini 保存的专用配置。两个 API Base URL 可分别指定。

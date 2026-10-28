@@ -6,7 +6,12 @@
 
 - 模型列表：GET /v1beta/models，真实列出 Sub2API 所返回的模型；命令：python scripts/generate_image.py list-models
 - 生图：POST /v1beta/models/gemini-nano-banana-2.1:generateContent
-- 同一 Sub2API 主机、同一个 Codex Key，Authorization: Bearer。
+- **Gemini 专用凭据**：优先使用 GEMINI_API_KEY / GEMINI_BASE_URL。没有对应环境变量时读取
+  image-image-generation/gemini-config.local.json（由 configure-gemini 从标准输入写入）；
+  Gemini 不读取或复用 GPT 的 OPENAI_API_KEY / auth.json 凭据。
+- 两种协议可分别使用不同的 Sub2API Key，甚至不同的 API 提供商主机。
+  如果没有单独指定 Gemini 地址，才会优先复用 Codex 配置的主机地址，但密钥仍然分离。
+- Gemini 使用 Authorization: Bearer <Gemini Key>；GPT 使用 Authorization: Bearer <GPT Key>。
 - 例：Codex Base URL 为 https://api.onemini.top/v1 时自动使用 https://api.onemini.top/v1beta。
 - Sub2API 的 Key 分组必须具备 Gemini 图片生成权限，并有可调度的模型或映射。
 - 请求图片在 contents[0].parts[].inlineData；返回图片取 candidates[0].content.parts[].inlineData。

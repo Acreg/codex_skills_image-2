@@ -91,9 +91,10 @@ def install(root: Path, skills_dir: Path) -> dict[str, str]:
         staged = Path(temporary) / NAME
         shutil.copytree(root / NAME, staged)
         # Keep the user's optional local API settings usable after an upgrade.
-        local_config = target / 'fallback-config.local.json'
-        if target.is_dir() and local_config.is_file():
-            shutil.copy2(local_config, staged / local_config.name)
+        for name in ("fallback-config.local.json", "gemini-config.local.json"):
+            local_config = target / name
+            if target.is_dir() and local_config.is_file():
+                shutil.copy2(local_config, staged / name)
         if target.exists():
             backup_dir = target.parent / ".image-skill-backups"
             backup_dir.mkdir(parents=True, exist_ok=True)
@@ -134,5 +135,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

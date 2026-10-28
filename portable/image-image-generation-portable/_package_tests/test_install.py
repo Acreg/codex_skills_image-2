@@ -76,10 +76,12 @@ class InstallerTests(unittest.TestCase):
         (target / "SKILL.md").write_text("old version", encoding="utf-8")
         (target / "user-settings.txt").write_text("retain", encoding="utf-8")
         (target / "fallback-config.local.json").write_text("local-only-test", encoding="utf-8")
+        (target / "gemini-config.local.json").write_text("gemini-local-only", encoding="utf-8")
         updated = installer.install(self.bundle, installer.default_skills_dir())
         self.assertEqual(updated["status"], "updated")
         self.assertEqual((Path(updated["backup"]) / "user-settings.txt").read_text(), "retain")
         self.assertEqual((target / "fallback-config.local.json").read_text(), "local-only-test")
+        self.assertEqual((target / "gemini-config.local.json").read_text(), "gemini-local-only")
         self.assertEqual((target / "SKILL.md").read_bytes(), (self.bundle / installer.NAME / "SKILL.md").read_bytes())
 
     def test_legacy_location_updated_in_place(self):

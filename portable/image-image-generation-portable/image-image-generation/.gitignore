@@ -4,3 +4,4 @@ fallback-config.local.json
 __pycache__/
 *.pyc
 *.zip
+gemini-config.local.json
