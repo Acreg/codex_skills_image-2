@@ -1,0 +1,64 @@
+﻿GPT-image2图片生成工具 v4.1.2 · 安装说明
+
+项目 GitHub：
+https://github.com/Acreg/codex_skills_image-2
+正式下载与更新：
+https://github.com/Acreg/codex_skills_image-2/releases
+
+一、Windows x64 手动安装（推荐）
+1. 先将本 ZIP 完整解压，不要在压缩包预览界面直接运行。
+2. 已装 Python 3.11 或更新版本：直接双击【安装图片Skill.cmd】。
+3. 没有 Python：双击【python-installers\windows-x64\python-3.14.10-amd64.exe】，
+   在安装向导安装 Python（建议勾选添加 PATH）。安装完成后再双击【安装图片Skill.cmd】。
+4. 安装脚本会把 Skill 放在当前用户的 CODEX_HOME/skills/image-image-generation，
+   通常是 %USERPROFILE%\.codex\skills\image-image-generation。
+   旧版本自动备份，.env 不会被覆盖。Pillow 依赖如缺失会优先用包内离线轮子安装，
+   若当前 Python 版本不适配包内轮子，再尝试在线安装。
+5. 关闭后重新启动 Codex 或创建新 Codex 会话，让新 Skill 被识别。
+
+二、交给 Codex 自行安装
+直接把 ZIP 的实际文件路径告诉 Codex，并说：
+「解压这个 ZIP，读取根目录【安装说明.txt】，
+ 用 Python 3.11+ 执行 image-image-generation-portable/install.py；
+ 若没有 Python，请使用包内 Windows x64 官方安装程序；
+ 安装后在真实 CODEX_HOME/skills/image-image-generation 验证 VERSION 和 .env，
+ 只做本地安装，不调用图片 API，不修改现有 .env 的真实 Key。」
+Codex 也可以直接执行 Windows 的【安装图片Skill.cmd】完成 Skill 与 Pillow 安装。
+macOS/Linux：解压后运行 sh image-image-generation-portable/install-codex.sh，
+Python 安装程序只适用于 Windows x64，请在其他平台安装对应 Python 3.11+。
+
+三、手动配置 Key（无需 PowerShell 输入环境变量）
+安装后打开：.codex\skills\image-image-generation\.env
+里面自动创建如下内容：
+
+OPENAI_API_KEY = ""
+OPENAI_BASE_URL = ""
+
+GEMINI_API_KEY = ""
+GEMINI_BASE_URL = "https://api.onemini.top/v1beta"
+
+GPT Image 默认直接使用 Codex 已有的 auth.json 和 config.toml，
+所以 OPENAI 两行保持空白即可。
+只有要手动指定 GPT 专用 Key/接口时才填写 OPENAI 两行。
+Nano Banana 2.1 必须单独填写 GEMINI_API_KEY；不从 GPT 借 Key，
+GEMINI_BASE_URL 可设为不同的服务商地址。
+.env 明文只保存在自己电脑上，不要上传 GitHub 或发给其他人。
+用户也可以让 Codex 帮忙编辑 .env，但是不要让它在聊天中回显 Key。
+
+四、马上用
+在 Codex 中描述：「用 GPT-image2图片生成工具生成……」
+默认调用 gpt-image-2.5-flare；也可指定 gpt-image-2.5-sunburst 或
+gemini-nano-banana-2.1。
+生成结果默认保存到项目 output/imagegen/，并按旧版交付流程
+将真实图片直接嵌入 Codex 聊天窗口，不是只显示文件路径。
+
+五、压缩包内容
+- image-image-generation-portable\ ：完整 Skill 源码及 Windows/macOS/Linux 安装脚本
+- 安装图片Skill.cmd ：Windows 一键安装入口（并安装缺失的 Pillow）
+- python-installers\windows-x64\python-3.14.10-amd64.exe ：官方 Python 离线安装程序
+- bundled-dependencies\windows-x64\ ：与 Python 3.14 Windows x64 匹配的 Pillow wheel
+- 安装说明.txt ：本说明
+- 根目录仓库有源码 README 和版本说明
+
+注意：未填写真实密钥时不代表 API 生图已经配置成功。
+本安装流程不会自动调用收费生图接口。

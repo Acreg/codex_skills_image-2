@@ -1,6 +1,9 @@
 # GPT-image2图片生成工具 · Codex 便携安装包
 
-版本：4.1.1。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
+
+**配置更新（v4.1.2）：** 安装后 Skill 根目录自动出现 .env，GPT 两项默认留空直接沿用 Codex 的 auth.json/config.toml，Gemini 在同一文件填写专用 Key。旧版将实际图片交付到聊天框的 prepare/deliver + Markdown 图片流程保留。
+
+版本：4.1.2。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
 
 ## 一键安装
 
@@ -45,3 +48,10 @@
 GPT 使用原有 OPENAI_API_KEY、OPENAI_BASE_URL；Nano Banana 使用 GEMINI_API_KEY、GEMINI_BASE_URL
 或者本地 gemini-config.local.json（使用 configure-gemini 命令配置）。
 两者的 API Key 独立，Gemini 不会回退使用 GPT Key。安装器会保留两种本地配置。
+
+## v4.1.2 安装包变化
+
+完整 ZIP 含 `安装说明.txt`、`安装图片Skill.cmd`、Python 3.14.10 Windows x64 官方安装程序，以及 Pillow cp314 离线轮子。
+用户可直接双击安装，也可把 ZIP 给 Codex 自动安装。
+根目录 `.env` 首次安装生成、升级保留；GPT 默认读取 Codex 原有 auth.json/config.toml。
+聊天实际图片嵌入规则保存在主 SKILL.md 快速入口和 references/workflow.md 详细流程中。

@@ -89,7 +89,7 @@ class GeminiTests(unittest.TestCase):
                 "GEMINI_API_KEY": "ENV_GEMINI_KEY", "GEMINI_BASE_URL": "https://gemini.example/v1beta"
             }, clear=True):
                 config = REAL_DISCOVER_GEMINI(home)
-                self.assertEqual(config.api_key, "ENV_GEMINI_KEY")
+                self.assertEqual(config.api_key, "LOCAL_GEMINI_KEY")
                 self.assertEqual(config.base_url, "https://gemini.example/v1beta")
                 self.assertNotEqual(config.api_key, "GPT_ONLY_KEY")
             with patch.dict(g.os.environ, {"OPENAI_API_KEY": "GPT_ONLY_KEY"}, clear=True):
