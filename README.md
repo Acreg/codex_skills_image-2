@@ -40,3 +40,9 @@ Windows 示例位置（仅为示例，不写死在脚本中）：**%USERPROFILE%
 
 
 
+
+## 本分支附带的 Python 离线安装程序
+
+本分支提供 [Python 3.14.10 Windows x64 离线安装程序](python-installers/windows-x64/python-3.14.10-amd64.exe)，适合尚未安装 Python 3.11+ 的 Windows 电脑。安装前请阅读 [使用说明和 SHA-256 校验值](python-installers/windows-x64/README.md)。
+
+Python 安装与 Codex Skill 安装是两项独立操作；已有 Python 3.11+ 的电脑无需重复安装。
