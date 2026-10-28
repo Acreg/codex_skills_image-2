@@ -1,0 +1,5 @@
+fallback-config.local.json export-ignore
+.fallback-config.local.json.*.tmp export-ignore
+.rollback export-ignore
+**/__pycache__ export-ignore
+*.zip export-ignore

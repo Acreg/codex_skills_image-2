@@ -1,0 +1,6 @@
+interface:
+  display_name: "GPT-image2图片生成工具"
+  short_description: "Onemini GPT Image 2/2.5 与 Gemini Nano Banana 2.1；生图、修图及项目落盘"
+  default_prompt: "使用 $aa-onemini-image-generation：先确定请求模型并用模型 ID 发送开始提示；生成期间每 30 秒固定回报本次精确调用状态；报错时停止监测并给出脱敏原文、中文翻译、错误码/类别和解决建议；未指定输出位置时把真实结果写入当前项目 output/imagegen；2.5 Flare/Sunburst 透明图使用顶层 background=transparent 与 PNG/WebP 并验证真实 Alpha；原生工具先 prepare，结束后无论附件是否显示都对本次精确调用执行 deliver；最终回复必须嵌入返回的真实 Markdown 图片，session 仅作恢复源，不把 completed、工具卡片或截图当作图片交付。"
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,6 @@
+fallback-config.local.json
+.fallback-config.local.json.*.tmp
+.rollback/
+__pycache__/
+*.pyc
+*.zip

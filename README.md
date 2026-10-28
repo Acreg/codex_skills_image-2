@@ -1,5 +1,16 @@
 # Codex 图片生成 Skill：GPT-image2图片生成工具
 
+## Gemini Nano Banana 2.1 新版下载（当前开发分支）
+
+本分支可直接使用 [GPT-image2-gemini-nano-banana-2.1-v4.1.0-preview.zip](dist/GPT-image2-gemini-nano-banana-2.1-v4.1.0-preview.zip)。**解压后进入 image-image-generation-portable 目录，运行其中的 install-codex.cmd（Windows）或 sh ./install-codex.sh（macOS/Linux）**。
+
+新功能支持 Sub2API GET /v1beta/models 和 POST /v1beta/models/gemini-nano-banana-2.1:generateContent。可查看 [Gemini 参数与用法](portable/image-image-generation-portable/image-image-generation/references/gemini-v1beta.md)。
+
+Windows x64 电脑如缺少 Python 3.11+，本分支亦保留 [Python 3.14.10 官方离线安装程序](python-installers/windows-x64/python-3.14.10-amd64.exe)。安装脚本不会自动执行 Python EXE。
+
+注意：下文原有 Latest Release 链接仍指向已发布的 v4.0.2 GPT Image 稳定版；**想试用 Gemini 必须下载上面的 v4.1.0 预览包**。本分支尚未在生产 Sub2API 使用付费 Key 验收。
+
+
 使用兼容 API 或中转 API 的 Codex 调用 Onemini 图片生成接口。Skill 内部名为 **aa-onemini-image-generation**，安装目录名为 **image-image-generation**。
 
 ## 一键安装（跨电脑，无固定路径）
@@ -40,3 +51,9 @@ Windows 示例位置（仅为示例，不写死在脚本中）：**%USERPROFILE%
 
 
 
+
+## Gemini Nano Banana 2.1 开发分支
+
+本分支支持 gemini-nano-banana-2.1 的 Sub2API Gemini 原生 /v1beta 模型列表和 generateContent 图片链路。安装包完整源码位于 portable/image-image-generation-portable；可在其中双击 install-codex.cmd 或使用 python install.py。详见该目录 image-image-generation/references/gemini-v1beta.md。
+
+该分支仅在本地使用合成图像和环回测试服务验收，尚未用真实 API Key 触发在线收费生成。
