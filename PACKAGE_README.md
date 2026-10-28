@@ -1,6 +1,6 @@
 # GPT-image2图片生成工具 · Codex 便携安装包
 
-版本：4.0.2。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
+版本：4.1.1。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
 
 ## 一键安装
 
@@ -39,3 +39,9 @@
 
 
 
+
+## GPT / Gemini 独立密钥
+
+GPT 使用原有 OPENAI_API_KEY、OPENAI_BASE_URL；Nano Banana 使用 GEMINI_API_KEY、GEMINI_BASE_URL
+或者本地 gemini-config.local.json（使用 configure-gemini 命令配置）。
+两者的 API Key 独立，Gemini 不会回退使用 GPT Key。安装器会保留两种本地配置。
