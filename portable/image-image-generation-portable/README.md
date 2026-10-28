@@ -1,6 +1,6 @@
 # GPT-image2图片生成工具 · Codex 便携安装包
 
-版本：4.1.2。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
+版本：4.1.3。内部调用名 **aa-onemini-image-generation**，安装目录为 **image-image-generation**，Codex 显示名 **GPT-image2图片生成工具**。
 
 ## 一键安装
 
@@ -47,7 +47,7 @@
 
 图片生成时需要 Pillow>=10；若 Python 尚未安装 Pillow，按 Skill requirements.txt 安装即可（python -m pip install "Pillow>=10"）。安装器本身离线，不会自动下载依赖。
 
-## 根目录 .env 配置（v4.1.2）
+## 根目录 .env 配置（v4.1.3）
 
 安装后将看到 image-image-generation/.env（与 SKILL.md 同级）。
 直接用记事本、VS Code 或智能体编辑即可，**不必运行 PowerShell 环境变量命令**。

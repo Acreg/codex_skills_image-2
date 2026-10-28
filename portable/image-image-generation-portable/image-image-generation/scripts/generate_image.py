@@ -28,7 +28,7 @@ from typing import Any
 
 from image_errors import ApiError, ConfigError, SkillError, redact, upstream_error
 
-VERSION = "4.1.2"
+VERSION = "4.1.3"
 DEFAULT_MODEL = "gpt-image-2.5-flare"
 GEMINI_MODEL = "gemini-nano-banana-2.1"
 GEMINI_IMAGE_SIZES = ("1K", "2K", "4K")
