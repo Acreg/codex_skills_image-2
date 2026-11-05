@@ -5,7 +5,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC_FILES = (
-    'SKILL.md', 'VERSION', 'requirements.txt', '.gitignore', '.gitattributes', '.env.example',
+    'SKILL.md', 'VERSION', 'requirements.txt', '.gitignore', '.gitattributes', '.env.example', 'references/README.md', 'tests/test_v42_runtime.py',
     'agents/openai.yaml', 'references/errors.md', 'references/fallback-setup.md',
     'scripts/generate_image.py', 'scripts/image_errors.py', 'scripts/package_skill.py',
     'tests/test_image_skill.py', 'tests/test_native_delivery.py',

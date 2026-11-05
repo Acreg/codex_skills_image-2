@@ -7,14 +7,14 @@
 安装脚本会在 Skill 根目录生成 .env（不上传 GitHub）。用编辑器直接填写：
 
     OPENAI_API_KEY = ""
-    OPENAI_BASE_URL = ""
+    OPENAI_BASE_URL = "https://api.onemini.top/v1"
 
     GEMINI_API_KEY = "你的 Gemini Key"
     GEMINI_BASE_URL = "https://api.onemini.top/v1beta"
 
-GPT 留空时沿用 ~/.codex/auth.json 和 ~/.codex/config.toml 的原始凭据。
+Codex GPT 自动使用当前 provider 对应凭据；其他客户端将 GPT Key 配入 .env。
 Gemini 只使用自己的 Key；不需要用户在 PowerShell 设置环境变量，也无需每次生成前查询模型列表。
-本 Skill 也允许用户在 .env 显式填写独立 GPT Key 和主机，以覆盖 Codex 默认配置。
+非 Codex 客户端可在 .env 填写 GPT Key 与主机；Codex API 模式使用当前 provider，.env 不覆盖 Codex GPT 凭据。Gemini Key 请在 api.onemini.top 创建 gemini-cli 渠道分组的 Key。
 历史 gemini-config.local.json 仍兼容，若 .env 没有指定 Gemini Key，使用该文件。
 图片生成后必须继续执行聊天图片嵌入流程，不能仅输出文件链接。
 
@@ -26,9 +26,9 @@ Gemini 只使用自己的 Key；不需要用户在 PowerShell 设置环境变量
   image-image-generation/gemini-config.local.json（由 configure-gemini 从标准输入写入）；
   Gemini 不读取或复用 GPT 的 OPENAI_API_KEY / auth.json 凭据。
 - 两种协议可分别使用不同的 Sub2API Key，甚至不同的 API 提供商主机。
-  如果没有单独指定 Gemini 地址，才会优先复用 Codex 配置的主机地址，但密钥仍然分离。
+  如果没有单独指定 Gemini 地址，使用 https://api.onemini.top/v1beta；密钥始终独立。
 - Gemini 使用 Authorization: Bearer <Gemini Key>；GPT 使用 Authorization: Bearer <GPT Key>。
-- 例：Codex Base URL 为 https://api.onemini.top/v1 时自动使用 https://api.onemini.top/v1beta。
+- Gemini 默认 Base URL 为 https://api.onemini.top/v1beta。
 - Sub2API 的 Key 分组必须具备 Gemini 图片生成权限，并有可调度的模型或映射。
 - 请求图片在 contents[0].parts[].inlineData；返回图片取 candidates[0].content.parts[].inlineData。
 

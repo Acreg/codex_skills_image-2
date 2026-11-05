@@ -1,51 +1,35 @@
 ---
 name: aa-onemini-image-generation
-description: 用户要绘图、生成图像、编辑图片、海报或 Logo 时立即调用本工具；支持 GPT Image 2/2.5 和 Gemini Nano Banana 2.1；优先最快出图并把真实图片嵌入 Codex 聊天框。
+description: 用户请求生成、绘制、编辑、修图、透明图或 GIF 时使用；支持 Onemini GPT Image 2.6、旧版 GPT Image 和 Gemini Nano Banana 2.1，直接生成并在聊天交付。
 metadata:
-  version: "4.1.3"
+  version: "4.2.0"
   repository: "https://github.com/Acreg/codex_skills_image-2"
   releases: "https://github.com/Acreg/codex_skills_image-2/releases"
 ---
 
-# GPT-image2图片生成工具
+# GPT-image2 图片生成工具
 
-## 第一优先级：马上开始生图，并把图片发到聊天
+## 直接生图
 
-用户请求生成、绘制、编辑、修图、透明背景或海报时，**先执行工具，不先查询模型、不先 config-check、不反复确认**。
+1. 从当前聊天的工作区运行：`<python> -B <技能目录>/scripts/generate_image.py run --prompt "用户要求"`。默认 `gpt-image-2.6`；用户指定 2.5、2、Gemini 时保留指定模型，参考图加 `--image <文件>`。
+2. 无需先检查 URL、Key、模型列表或运行 config-check。GPT 的客户端和登录方式由脚本自动判断：Codex API 模式直接读取当前 Onemini provider 凭据；非 Onemini API 请求被拒绝；其他客户端使用技能目录 `.env`。Codex 非 API 登录返回 `native_required`，按原有 `native_delivery.py prepare` → 内置生图 → `native_delivery.py deliver` 交付；不能声称原生工具使用了某个 API 模型；原生工具不支持所需 GIF 时如实说明，不能把静态图冒充 GIF。
+3. 请求 GIF 加 `--output-format gif`；本版不支持 GIF `--size`，默认不发送分辨率。只有用户要求帧数或时长时才传 `--frame-count` / `--frame-duration-ms`；实际尺寸、帧数、播放时长可能与请求不同，按返回元数据如实说明，不能用补帧冒充。GIF 生成仅支持 `gpt-image-2.6` 文生图。
+4. 用户要 Gemini 时使用 `--model gemini-nano-banana-2.1`。若缺少 Gemini Key，引导去 **https://api.onemini.top** 新建 **gemini-cli 渠道分组**的 Key，填入技能目录 `.env` 的 `GEMINI_API_KEY`；不能复用 GPT Key 或在聊天回显。
+5. 如果 Pillow 等 Python 依赖缺失，先询问用户是否同意安装；同意后用当前 Python 最短路径执行 `python -m pip install Pillow`，安装完成继续。不要自动安装或先额外做诊断。
+6. 调用前发送 `图片生成请求已发送，使用模型{MODEL_ID}正在绘图中，请稍后`，耗时较长时每 30 秒依据真实状态播报。成功后把返回的 `markdown` 原样嵌入聊天，不能只给路径或 `artifact_ready`；默认保存到当前工作区 `output/imagegen/`。`partial` 表示已有文件但 GIF 格式或参数不符，也应交付文件并如实说明。
 
-1. **选择模型**：未指定默认 `gpt-image-2.5-flare`（快速），精修 `gpt-image-2.5-sunburst`；也支持 `gpt-image-2.5`、`gpt-image-2`、`gpt-image-2-2026-04-21`。用户要大香蕉/Nano Banana 用 `gemini-nano-banana-2.1`。
-2. **发起真实生成**：执行 `<python> -B <技能目录>/scripts/generate_image.py run --model <模型> --prompt "<要求>"`。有参考图加 `--image <文件>`。默认成品保存项目 `output/imagegen/`。
-3. **凭据自动读取**：GPT 默认读当前 Codex 的 `auth.json`（Key）与 `config.toml`（Base URL）；根目录 `.env` 中只有非空 OPENAI_API_KEY / OPENAI_BASE_URL 才覆盖。Gemini 只读自己的 GEMINI_API_KEY / GEMINI_BASE_URL 或历史 Gemini 独立配置，绝不复用 GPT Key。无需 PowerShell 设置变量。
-4. **聊天中直接显示真实图片**：API 工具返回的 `markdown` 必须直接嵌入最终回复，不能仅发路径、JSON、工具卡片或“已生成”。使用 Codex 原生图像工具时严格执行旧版 `native_delivery.py prepare → 生成 → native_delivery.py deliver`，把 `deliver` 返回的 Markdown 图片原样插入聊天；不能因缩略图缺失重复生图。
-5. 调用前确认模型，然后发送 `图片生成请求已发送，使用模型{MODEL_ID}正在绘图中，请稍后`；生成时间较长时按 `references/monitoring.md` 每 30 秒从真实状态播报。
-
-最快 GPT 调用：
-
-```text
-<python> -B <技能目录>/scripts/generate_image.py run --prompt "你的绘图要求"
-```
-
-Nano Banana：
+示例：
 
 ```text
-<python> -B <技能目录>/scripts/generate_image.py run --model gemini-nano-banana-2.1 --prompt "你的绘图要求" --aspect-ratio 16:9 --image-size 2K
+<python> -B <技能目录>/scripts/generate_image.py run --prompt "日落下的折纸狐狸"
+<python> -B <技能目录>/scripts/generate_image.py run --output-format gif --prompt "摇尾巴的折纸狐狸，循环动画"
+<python> -B <技能目录>/scripts/generate_image.py run --model gemini-nano-banana-2.1 --prompt "一只狐狸"
 ```
 
-透明底（必须发送 background=transparent，不能降级 GPT Image 2.5 模型，必须验证 Alpha）：
+保留 `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst`、`gpt-image-2.5`、`gpt-image-2` 和 `gpt-image-2-2026-04-21`；2.6 系列本版只支持无后缀的 `gpt-image-2.6`。透明图使用 `background=transparent` 与 PNG/WebP 并验证 Alpha；不得自动换模型或重复收费重试。
 
-```text
-<python> -B <技能目录>/scripts/generate_image.py run --model gpt-image-2.5-flare --background transparent --output-format png --prompt "无背景的主体"
-```
+## 按需读取和更新
 
-**必须实际把图片发到聊天框**：`completed`、`artifact_ready`、已保存文件都不代表用户看到图片；原生 `prepare/deliver` 以及 GPT Image 原版交付流程不得删除。
-
-## 副文档按需读取（不要为首次生图增加读取开销）
-
-- 用户要配置 .env、安装或了解凭据：[`references/configuration.md`](references/configuration.md)。
-- 完整原版交付细则（聊天图片、`native_delivery.py`、监控、重试与恢复）：[`references/workflow.md`](references/workflow.md)、[`references/native-delivery.md`](references/native-delivery.md)。
-- 模型、透明 PNG/WebP、尺寸：[`references/models.md`](references/models.md)。
-- Gemini v1beta、参考图、多图与参数：[`references/gemini-v1beta.md`](references/gemini-v1beta.md)。
-- 进度和异常中文解释：[`references/monitoring.md`](references/monitoring.md)、[`references/errors.md`](references/errors.md)、[`references/recovery.md`](references/recovery.md)。
-- 项目维护：https://github.com/Acreg/codex_skills_image-2，官方 Onemini 入口：https://api.onemini.top/v1，图片生成工作站在 api.onemini.top，可规避普通 CDN 单连接约 2 分钟等待上限。
-
-**实际请求图像时优先生成；仅用户询问安装/配置/扩展参数时再读取副文档。**
+- [副文档根目录及索引](references/README.md)：配置、模型/GIF、Gemini、原生交付、监控和错误；异常恢复见 [references/recovery.md](references/recovery.md)。
+- 更新来源：[GitHub 项目](https://github.com/Acreg/codex_skills_image-2) / [Releases](https://github.com/Acreg/codex_skills_image-2/releases)。用户要求更新时查询并使用发布包，保留本地 `.env` 和其他凭据；正常生图不先检查更新。
+- 图片 API 入口为 `https://api.onemini.top/v1`；图片生成工作站位于 api.onemini.top，可避开部分 CDN 约 2 分钟单连接等待限制。

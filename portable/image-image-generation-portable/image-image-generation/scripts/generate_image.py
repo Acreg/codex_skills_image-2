@@ -12,6 +12,8 @@ import json
 import hashlib
 import io
 import socket
+import shutil
+import subprocess
 import tempfile
 import mimetypes
 import os
@@ -28,12 +30,13 @@ from typing import Any
 
 from image_errors import ApiError, ConfigError, SkillError, redact, upstream_error
 
-VERSION = "4.1.3"
-DEFAULT_MODEL = "gpt-image-2.5-flare"
+VERSION = "4.2.0"
+DEFAULT_MODEL = "gpt-image-2.6"
 GEMINI_MODEL = "gemini-nano-banana-2.1"
 GEMINI_IMAGE_SIZES = ("1K", "2K", "4K")
 GEMINI_ASPECT_RATIOS = ("1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9")
 SUPPORTED_MODELS = (
+    "gpt-image-2.6",
     "gpt-image-2.5-flare",
     "gpt-image-2.5-sunburst",
     "gpt-image-2.5",
@@ -42,6 +45,7 @@ SUPPORTED_MODELS = (
     GEMINI_MODEL,
 )
 MODEL_QUALITIES = {
+    "gpt-image-2.6": frozenset(("auto", "low", "medium", "high")),
     "gpt-image-2.5-flare": frozenset(("auto", "low", "medium", "high", "xhigh", "max")),
     "gpt-image-2.5-sunburst": frozenset(("auto", "low", "medium", "high", "xhigh", "max")),
     "gpt-image-2.5": frozenset(("auto", "low", "medium", "high", "xhigh", "max")),
@@ -54,8 +58,8 @@ DEFAULT_SIZE = "auto"
 DEFAULT_BACKGROUND = "auto"
 DEFAULT_OUTPUT_FORMAT = "png"
 BACKGROUND_OPTIONS = ("auto", "transparent", "opaque")
-OUTPUT_FORMATS = ("png", "jpeg", "webp")
-OUTPUT_SUFFIXES = {"png": ".png", "jpeg": ".jpeg", "webp": ".webp"}
+OUTPUT_FORMATS = ("png", "jpeg", "webp", "gif")
+OUTPUT_SUFFIXES = {"png": ".png", "jpeg": ".jpeg", "webp": ".webp", "gif": ".gif"}
 BENCHMARK_T2I_PROMPT = (
     "横版电影级科幻摄影：黄昏的红色峡谷太阳观测站，中央金色环形日冕装置产生清晰放射光，"
     "前景三名穿白色科研服的人物，左侧全息太阳图，右侧机械臂与反射镜阵列，明确前中后景、"
@@ -64,16 +68,16 @@ BENCHMARK_T2I_PROMPT = (
 )
 PRESET_OPTIONS = {
     "auto": {},
-    "fast": {"model": "gpt-image-2.5-flare", "quality": "medium", "size": "auto"},
-    "final": {"model": "gpt-image-2.5-sunburst", "quality": "high", "size": "auto"},
-    "text-heavy": {"model": "gpt-image-2.5-sunburst", "quality": "high", "size": "auto"},
+    "fast": {"model": "gpt-image-2.6", "quality": "medium", "size": "auto"},
+    "final": {"model": "gpt-image-2.6", "quality": "high", "size": "auto"},
+    "text-heavy": {"model": "gpt-image-2.6", "quality": "high", "size": "auto"},
     "benchmark-t2i": {
-        "model": "gpt-image-2.5-sunburst", "quality": "high", "size": "auto",
+        "model": "gpt-image-2.6", "quality": "high", "size": "auto",
         "prompt": BENCHMARK_T2I_PROMPT,
     },
     "transparent": {"background": "transparent", "output_format": "png"},
 }
-DEFAULT_BASE_URL = "https://api.openai.com/v1"
+DEFAULT_BASE_URL = "https://api.onemini.top/v1"
 
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
@@ -139,31 +143,67 @@ def read_skill_env() -> dict[str, str]:
     return values
 
 
-def config_base_url(home: Path) -> tuple[str | None, str | None]:
+def codex_provider(home: Path) -> tuple[str | None, dict[str, Any]]:
     config = read_toml(home / "config.toml")
-    provider_name = config.get("model_provider")
+    profile_name = os.environ.get("CODEX_PROFILE") or config.get("profile")
+    profiles = config.get("profiles", {})
+    profile = profiles.get(profile_name, {}) if isinstance(profiles, dict) and profile_name else {}
+    if not isinstance(profile, dict):
+        raise ConfigError("当前 Codex profile 配置无效")
+    provider_name = profile.get("model_provider", config.get("model_provider"))
     providers = config.get("model_providers", {})
-    if not isinstance(provider_name, str) or not isinstance(providers, dict):
-        return None, None
-    provider = providers.get(provider_name, {})
+    provider = providers.get(provider_name, {}) if isinstance(providers, dict) and provider_name else {}
     if not isinstance(provider, dict):
-        return None, provider_name
+        raise ConfigError("当前 Codex model_provider 配置无效")
+    return provider_name, provider
+
+
+def config_base_url(home: Path) -> tuple[str | None, str | None]:
+    provider_name, provider = codex_provider(home)
     base_url = provider.get("base_url")
-    if isinstance(base_url, str) and base_url.strip():
-        return base_url.strip(), provider_name
-    return None, provider_name
+    return (base_url.strip() if isinstance(base_url, str) and base_url.strip() else None, provider_name)
 
 
-def auth_file_key(home: Path) -> str | None:
+def read_codex_auth(home: Path) -> dict[str, Any] | None:
     path = home / "auth.json"
     if not path.is_file():
         return None
     try:
         auth = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ConfigError(f"Unable to read Codex auth file: {path}") from exc
-    value = auth.get("OPENAI_API_KEY") if isinstance(auth, dict) else None
+        raise ConfigError("无法读取当前 Codex auth.json") from exc
+    if not isinstance(auth, dict):
+        raise ConfigError("当前 Codex auth.json 格式无效")
+    return auth
+
+
+def auth_file_key(home: Path) -> str | None:
+    auth = read_codex_auth(home) or {}
+    value = auth.get("OPENAI_API_KEY")
     return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def is_codex_runtime() -> bool:
+    return bool(os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID"))
+
+
+def codex_login_status() -> str | None:
+    # Only needed when the actual auth is in the OS credential store.
+    exe = os.environ.get("CODEX_CLI_PATH") or shutil.which("codex")
+    if not exe:
+        return None
+    try:
+        result = subprocess.run([exe, "login", "status"], capture_output=True, text=True, timeout=5, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    status = (result.stdout + " " + result.stderr).casefold()
+    if "chatgpt" in status:
+        return "native"
+    if "api key" in status or "api-key" in status:
+        return "api"
+    return None
 
 
 def normalize_base_url(value: str, *, https_only: bool = False) -> str:
@@ -187,34 +227,54 @@ def normalize_base_url(value: str, *, https_only: bool = False) -> str:
     return url if parsed.path.rstrip("/").lower().endswith("/v1") else f"{url}/v1"
 
 
-def discover_api_config(home: Path) -> ApiConfig:
-    values = read_skill_env()
-    local_key = values.get("OPENAI_API_KEY", "").strip()
-    codex_key = auth_file_key(home) if not local_key else None
-    environment_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    api_key = local_key or codex_key or environment_key
-    credential_source = ".env" if local_key else "auth.json" if codex_key else "environment" if environment_key else "missing"
+def discover_api_config(home: Path) -> ApiConfig | None:
+    if not is_codex_runtime():
+        values = read_skill_env()
+        key = values.get("OPENAI_API_KEY", "").strip()
+        if not key:
+            raise ConfigError("请在 api.onemini.top 创建 API Key，填写技能目录 .env 的 OPENAI_API_KEY；不要在聊天中公开 Key")
+        url = values.get("OPENAI_BASE_URL", "").strip() or DEFAULT_BASE_URL
+        return ApiConfig(normalize_base_url(url, https_only=True), key, ".env", ".env")
 
-    configured_url, provider_name = config_base_url(home)
-    local_url = values.get("OPENAI_BASE_URL", "").strip()
-    environment_url = os.environ.get("OPENAI_BASE_URL", "").strip()
-    base_url = local_url or configured_url or environment_url or DEFAULT_BASE_URL
-    endpoint_source = ".env" if local_url else "config.toml" if configured_url else "environment" if environment_url else "official-default"
-
-    if not api_key:
-        raise ConfigError(
-            "No explicit API key found. Set OPENAI_API_KEY or provide "
-            "OPENAI_API_KEY in Codex auth.json. Codex Desktop native image "
-            "generation can still work without API mode."
-        )
-
-    return ApiConfig(
-        base_url=normalize_base_url(base_url),
-        api_key=api_key,
-        endpoint_source=endpoint_source,
-        credential_source=credential_source,
-        provider_name=provider_name,
-    )
+    provider_name, provider = codex_provider(home)
+    configured_url = provider.get("base_url")
+    raw_url = configured_url.strip() if isinstance(configured_url, str) and configured_url.strip() else "https://api.openai.com/v1"
+    key = provider.get("experimental_bearer_token")
+    key = key.strip() if isinstance(key, str) else ""
+    source = "config.toml" if key else ""
+    env_name = provider.get("env_key")
+    if not key and isinstance(env_name, str) and env_name:
+        key = os.environ.get(env_name, "").strip()
+        source = "provider-env-key" if key else ""
+        if not key:
+            raise ConfigError("当前 Codex provider 指定的 API Key 环境变量未配置")
+    auth = read_codex_auth(home) if not key else None
+    if not key and auth:
+        value = auth.get("OPENAI_API_KEY")
+        if isinstance(value, str) and value.strip():
+            key, source = value.strip(), "auth.json"
+    mode = "api" if key else None
+    if mode is None and auth:
+        auth_mode = str(auth.get("auth_mode") or "").casefold()
+        if "chatgpt" in auth_mode or isinstance(auth.get("tokens"), dict):
+            return None
+        if auth_mode in {"apikey", "api_key", "api-key"}:
+            mode = "api"
+    if mode is None and isinstance(env_name, str) and env_name:
+        mode = "api"
+    if mode is None:
+        mode = codex_login_status()
+    if mode == "native":
+        return None
+    if mode != "api":
+        raise ConfigError("无法判断当前 Codex 登录方式；请检查 Codex 登录状态，未读取其他账号或备用配置")
+    url = normalize_base_url(raw_url, https_only=True)
+    host = urllib.parse.urlsplit(url).hostname or ""
+    if not host.lower().endswith(".onemini.top"):
+        raise ConfigError("该 Skill 仅限连接 Onemini API 使用")
+    if not key:
+        raise ConfigError("当前 Codex 是 API 登录，但无法安全读取对应 API Key；请检查当前凭据存储")
+    return ApiConfig(url, key, "config.toml", source, provider_name)
 
 
 def endpoint_host(base_url: str) -> str:
@@ -346,15 +406,14 @@ def discover_gemini_config(home: Path) -> ApiConfig:
     environment_key = os.environ.get("GEMINI_API_KEY", "").strip()
     key = file_key or (local.api_key if local else "") or environment_key
     if not key:
-        raise ConfigError("Gemini 未配置 Key；请编辑 Skill 根目录 .env 的 GEMINI_API_KEY。不会复用 GPT API Key")
-    configured_url, _ = config_base_url(home) if not file_url and not local else (None, None)
+        raise ConfigError("Gemini 未配置 Key；请在 api.onemini.top 新建 gemini-cli 渠道分组的 Key，填写技能目录 .env 的 GEMINI_API_KEY。不会复用 GPT Key")
     environment_url = os.environ.get("GEMINI_BASE_URL", "").strip()
     base_url = ((local.base_url if local else "") or file_url or environment_url
-                or configured_url or GEMINI_DEFAULT_BASE_URL)
+                or GEMINI_DEFAULT_BASE_URL)
     return ApiConfig(
         base_url=normalize_gemini_base_url(base_url),
         api_key=key,
-        endpoint_source="gemini-config" if local else ".env" if file_url else "environment" if environment_url else "codex-provider" if configured_url else "default",
+        endpoint_source="gemini-config" if local else ".env" if file_url else "environment" if environment_url else "default",
         credential_source=".env" if file_key else "gemini-config" if local else "environment",
     )
 
@@ -367,7 +426,7 @@ def gemini_config_report() -> dict[str, Any]:
     return {
         "available": file_key or stored is not None or environment_key,
         "credential_source": ".env" if file_key else "gemini-config" if stored else "environment" if environment_key else "missing",
-        "endpoint_source": "gemini-config" if stored else ".env" if values.get("GEMINI_BASE_URL", "").strip() else "environment" if os.environ.get("GEMINI_BASE_URL", "").strip() else "codex-provider",
+        "endpoint_source": "gemini-config" if stored else ".env" if values.get("GEMINI_BASE_URL", "").strip() else "environment" if os.environ.get("GEMINI_BASE_URL", "").strip() else "default",
     }
 
 
@@ -479,19 +538,26 @@ def validate_output_options(background: str, output_format: str) -> None:
         raise ConfigError("不支持的 background；可选：" + "/".join(BACKGROUND_OPTIONS))
     if output_format not in OUTPUT_FORMATS:
         raise ConfigError("不支持的 output_format；可选：" + "/".join(OUTPUT_FORMATS))
-    if background == "transparent" and output_format == "jpeg":
-        raise ConfigError("透明背景必须使用 output_format=png 或 webp，不能使用 jpeg")
+    if background == "transparent" and output_format not in ("png", "webp"):
+        raise ConfigError("透明背景必须使用 output_format=png 或 webp")
 
 
 def json_body(prompt: str, size: str, quality: str, model: str = DEFAULT_MODEL,
-              background: str = DEFAULT_BACKGROUND, output_format: str = DEFAULT_OUTPUT_FORMAT) -> bytes:
+              background: str = DEFAULT_BACKGROUND, output_format: str = DEFAULT_OUTPUT_FORMAT,
+              frame_count: int | None = None, frame_duration_ms: int | None = None) -> bytes:
     validate_model_options(model, quality)
     validate_output_options(background, output_format)
-    return json.dumps(
-        {"model": model, "prompt": prompt, "size": size, "quality": quality, "background": background,
-         "output_format": output_format, "n": 1},
-        ensure_ascii=False,
-    ).encode("utf-8")
+    payload: dict[str, Any] = {"model": model, "prompt": prompt, "quality": quality,
+                               "output_format": output_format, "n": 1}
+    if output_format == "gif":
+        if frame_count is not None:
+            payload["frame_count"] = frame_count
+        if frame_duration_ms is not None:
+            payload["frame_duration_ms"] = frame_duration_ms
+    else:
+        payload["size"] = size
+        payload["background"] = background
+    return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
 def multipart_body(prompt: str, images: list[Path], size: str, quality: str,
@@ -553,7 +619,7 @@ def image_runtime():
     try:
         from PIL import Image
     except ImportError as exc:
-        raise ConfigError("图片验证需要 Pillow；Desktop 使用 bundled Python，其他环境安装 requirements.txt 后再请求") from exc
+        raise ConfigError("缺少 Pillow；请先询问用户是否同意安装，确认后使用当前 Python 执行 python -m pip install Pillow") from exc
     return Image
 
 
@@ -581,21 +647,33 @@ def image_markdown(output: Path) -> str:
     return f"![生成的图片](<{path}>)"
 
 
-def save_image_bytes(data: bytes, output: Path, *, force: bool = False, require_alpha: bool = False) -> dict[str, Any]:
+def save_image_bytes(data: bytes, output: Path, *, force: bool = False, require_alpha: bool = False,
+                     require_animation: bool = False) -> dict[str, Any]:
     Image = image_runtime()
     try:
         with Image.open(io.BytesIO(data)) as image:
             image.verify()
         with Image.open(io.BytesIO(data)) as image:
+            fmt = image.format
+            frames = getattr(image, "n_frames", 1)
+            durations = []
+            for index in range(frames):
+                image.seek(index)
+                image.load()
+                durations.append(image.info.get("duration", 0))
+            image.seek(0)
             image.load()
             bands = image.getbands()
             has_alpha = "A" in bands
             alpha_min = alpha_max = None
             if has_alpha:
                 alpha_min, alpha_max = image.getchannel("A").getextrema()
-            metadata = {"width": image.width, "height": image.height, "image_format": image.format,
+            metadata = {"width": image.width, "height": image.height, "image_format": fmt,
                         "image_mode": image.mode, "bands": bands, "has_alpha": has_alpha,
-                        "alpha_min": alpha_min, "alpha_max": alpha_max}
+                        "alpha_min": alpha_min, "alpha_max": alpha_max,
+                        "frame_count": frames, "frame_durations_ms": durations,
+                        "duration_ms": sum(d for d in durations if isinstance(d, (int, float))),
+                        "is_animated": bool(getattr(image, "is_animated", False))}
     except Exception as exc:
         raise ApiError("图片不能完整解码，未写入输出文件", category="invalid_image",
                        cause="图片数据损坏或内容并非图片", action="保留已有响应并排查交付，不重新生成", outcome="delivery_failed") from exc
@@ -604,12 +682,16 @@ def save_image_bytes(data: bytes, output: Path, *, force: bool = False, require_
                        category="invalid_transparency", outcome="delivery_failed",
                        cause="上游或中转服务可能未透传 background/output_format",
                        action="检查实际请求体和中转参数白名单，不重新生成")
+    if require_animation and fmt != "GIF":
+        suffix = {"PNG": ".png", "JPEG": ".jpeg", "WEBP": ".webp"}.get(fmt)
+        if suffix:
+            output = output.with_suffix(suffix)
     try:
         atomic_write(output, data, replace=force)
     except OSError as exc:
         raise ApiError("已有图片数据，但保存失败（文件已存在、权限或磁盘问题）", category="image_save_error",
                        cause="本地交付失败，不是生图失败", action="更换输出位置或明确允许覆盖，再恢复同一产物", outcome="generated") from exc
-    return {**metadata, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+    return {**metadata, "output_path": str(output), "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
             "markdown": image_markdown(output)}
 
 
@@ -621,7 +703,7 @@ def decode_image(encoded: str) -> bytes:
                        action="检查原始结果是否完整，不重新生成") from exc
 
 
-def write_image(result: dict[str, Any], output: Path, *, force: bool = False, require_alpha: bool = False) -> dict[str, Any]:
+def write_image(result: dict[str, Any], output: Path, *, force: bool = False, require_alpha: bool = False, require_animation: bool = False) -> dict[str, Any]:
     error = upstream_error(result)
     if error:
         raise error
@@ -635,7 +717,7 @@ def write_image(result: dict[str, Any], output: Path, *, force: bool = False, re
         raise error
     encoded = item.get("b64_json")
     if isinstance(encoded, str) and encoded:
-        return save_image_bytes(decode_image(encoded), output, force=force, require_alpha=require_alpha)
+        return save_image_bytes(decode_image(encoded), output, force=force, require_alpha=require_alpha, require_animation=require_animation)
     image_url = item.get("url")
     if isinstance(image_url, str) and image_url:
         parsed = urllib.parse.urlsplit(image_url)
@@ -648,7 +730,7 @@ def write_image(result: dict[str, Any], output: Path, *, force: bool = False, re
             exc.report["outcome"] = "delivery_failed"
             exc.report["suggested_action"] = "只重取已有图片或恢复本地产物，不重新生成"
             raise
-        return save_image_bytes(content, output, force=force, require_alpha=require_alpha)
+        return save_image_bytes(content, output, force=force, require_alpha=require_alpha, require_animation=require_animation)
     raise ApiError("响应没有 b64_json 或图片 URL", category="empty_image_result", http_status=200,
                    action="核对已生成产物，不自动重试")
 
@@ -733,51 +815,24 @@ def fallback_report() -> dict[str, Any]:
 
 
 def existing_config_report(home: Path) -> dict[str, Any]:
-    values = read_skill_env()
-    configured_url, provider_name = config_base_url(home)
-    local_url = values.get("OPENAI_BASE_URL", "").strip()
-    env_url = os.environ.get("OPENAI_BASE_URL", "").strip()
-    endpoint = local_url or configured_url or env_url or DEFAULT_BASE_URL
-    local_key = bool(values.get("OPENAI_API_KEY", "").strip())
-    env_key = bool(os.environ.get("OPENAI_API_KEY", "").strip())
-    file_key = False
-    auth_error = None
-    if not local_key:
-        try:
-            file_key = bool(auth_file_key(home))
-        except ConfigError as exc:
-            auth_error = str(exc)
-    return {
-        "version": VERSION,
-        "model": DEFAULT_MODEL,
-        "default_model": DEFAULT_MODEL,
-        "available_models": list(SUPPORTED_MODELS),
-        "available_presets": list(PRESET_OPTIONS),
-        "fallback_mode": fallback_report(),
-        "native_mode": {
-            "available": "detected-by-codex-runtime",
-            "requires_auth_json": False,
-        },
-        "api_mode": {
-            "available": local_key or file_key or env_key,
-            "credential_source": ".env" if local_key else "auth.json" if file_key else "environment" if env_key else "missing",
-            "endpoint_source": ".env" if local_url else "config.toml" if configured_url else "environment" if env_url else "official-default",
-            "endpoint_host": endpoint_host(normalize_base_url(endpoint)),
-            "base_url": normalize_base_url(endpoint),
-            "credential_status": "configured" if local_key or file_key or env_key else "missing",
-            "provider": provider_name,
-            "auth_error": auth_error,
-        },
-    }
+    config = discover_api_config(home)
+    return {"version": VERSION, "model": DEFAULT_MODEL, "default_model": DEFAULT_MODEL,
+            "available_models": list(SUPPORTED_MODELS), "available_presets": list(PRESET_OPTIONS),
+            "fallback_mode": fallback_report(),
+            "native_mode": {"available": config is None},
+            "api_mode": {"available": config is not None,
+                         "credential_source": config.credential_source if config else None,
+                         "endpoint_source": config.endpoint_source if config else None,
+                         "endpoint_host": endpoint_host(config.base_url) if config else None}}
 
 
 def config_report(home: Path) -> dict[str, Any]:
     try:
         return existing_config_report(home)
     except ConfigError as exc:
-        return {"version": VERSION, "model": DEFAULT_MODEL, "default_model": DEFAULT_MODEL, "available_models": list(SUPPORTED_MODELS), "available_presets": list(PRESET_OPTIONS),
-                "native_mode": {"available": "detected-by-codex-runtime", "requires_auth_json": False},
-                "api_mode": {"available": False, "credential_status": "invalid", "error": exc.report},
+        return {"version": VERSION, "model": DEFAULT_MODEL, "default_model": DEFAULT_MODEL,
+                "available_models": list(SUPPORTED_MODELS), "available_presets": list(PRESET_OPTIONS),
+                "native_mode": {"available": False}, "api_mode": {"available": False, "error": exc.report},
                 "fallback_mode": fallback_report()}
 
 
@@ -796,7 +851,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--size", default=None, help="1024x1024, 1536x1024, 1024x1536, or auto")
     parser.add_argument("--quality", choices=("low", "medium", "high", "xhigh", "max", "auto"), default=None)
     parser.add_argument("--background", choices=BACKGROUND_OPTIONS, default=None, help="auto, transparent, or opaque")
-    parser.add_argument("--output-format", choices=OUTPUT_FORMATS, default=None, help="png, jpeg, or webp")
+    parser.add_argument("--output-format", choices=OUTPUT_FORMATS, default=None, help="png, jpeg, webp, or gif")
+    parser.add_argument("--frame-count", type=int, help="GIF frame count when explicitly requested")
+    parser.add_argument("--frame-duration-ms", type=int, help="GIF frame duration when explicitly requested")
     parser.add_argument("--model", default=None, help="Explicit image model; overrides preset")
     parser.add_argument("--aspect-ratio", choices=GEMINI_ASPECT_RATIOS, help="Gemini imageConfig.aspectRatio")
     parser.add_argument("--image-size", choices=GEMINI_IMAGE_SIZES, help="Gemini imageConfig.imageSize")
@@ -873,12 +930,24 @@ def main() -> int:
             args.quality is not None or args.size is not None or selected_background != "auto"
         ):
             raise ConfigError("Gemini 不支持 OpenAI --quality/--size/--background；请用 --aspect-ratio 和 --image-size")
-        image_runtime()  # Check dependency before a possibly billable POST.
-        output = ensure_output(args.out or default_output(selected_model, selected_output_format), args.force)
+        if selected_output_format == "gif":
+            if selected_model != "gpt-image-2.6" or operation != "generate":
+                raise ConfigError("GIF 仅支持 gpt-image-2.6 文生图")
+            if args.size is not None:
+                raise ConfigError("本版本 GIF 不支持 --size；上游决定实际尺寸")
+        elif args.frame_count is not None or args.frame_duration_ms is not None:
+            raise ConfigError("GIF 帧参数只能与 --output-format gif 一起使用")
         home = (args.config_home or codex_home()).expanduser().resolve()
         config = (discover_gemini_config(home) if selected_model == GEMINI_MODEL
-                  else load_fallback() if args.config_source == "fallback"
+                  else load_fallback() if args.config_source == "fallback" and not is_codex_runtime()
                   else discover_api_config(home))
+        if config is None:
+            print(json.dumps({"version": VERSION, "status": "native_required", "mode": "native",
+                              "requested_format": selected_output_format,
+                              "instruction": "使用 Codex 内置生图工具并按 native_delivery.py prepare/deliver 交付；不要声称原生工具使用了 API 模型"}, ensure_ascii=False))
+            return 0
+        image_runtime()  # Before the potentially billable POST; no dependency is needed for native routing.
+        output = ensure_output(args.out or default_output(selected_model, selected_output_format), args.force)
         active_key = config.api_key
         if selected_model == GEMINI_MODEL:
             paths = [Path(value).expanduser().resolve() for value in (args.image or [])]
@@ -888,7 +957,8 @@ def main() -> int:
             operation = "edit" if paths else "generate"
             content_type = "application/json; charset=utf-8"
         elif operation == "generate":
-            body = json_body(prompt, selected_size, selected_quality, selected_model, selected_background, selected_output_format)
+            body = json_body(prompt, selected_size, selected_quality, selected_model, selected_background, selected_output_format,
+                             frame_count=args.frame_count, frame_duration_ms=args.frame_duration_ms)
             content_type = "application/json; charset=utf-8"
             route_url = f"{config.base_url}/images/generations"
         else:
@@ -899,16 +969,26 @@ def main() -> int:
         result = api_request(route_url, config.api_key, body, content_type)
         metadata = (write_gemini_images(result, output, selected_output_format, force=args.force)
                     if selected_model == GEMINI_MODEL else
-                    write_image(result, output, force=args.force, require_alpha=(selected_background == "transparent")))
+                    write_image(result, output, force=args.force, require_alpha=(selected_background == "transparent"),
+                                require_animation=(selected_output_format == "gif")))
+        warnings = []
+        if selected_output_format == "gif":
+            if metadata["image_format"] != "GIF" or not metadata["is_animated"]:
+                warnings.append("上游未返回多帧 GIF")
+            if args.frame_count is not None and metadata["frame_count"] != args.frame_count:
+                warnings.append("实际 GIF 帧数与请求不一致")
+            if args.frame_duration_ms is not None and any(d != args.frame_duration_ms for d in metadata["frame_durations_ms"]):
+                warnings.append("实际 GIF 帧时长与请求不一致")
         elapsed_ms = round((time.perf_counter() - started) * 1000)
+        actual_output = metadata.pop("output_path", str(output))
         print(json.dumps({
-            "version": VERSION, "model": selected_model, "quality": selected_quality, "size": selected_size,
+            "version": VERSION, "model": selected_model, "quality": selected_quality, "size": None if selected_output_format == "gif" else selected_size,
             "background": selected_background, "output_format": selected_output_format,
             "api_protocol": "gemini-v1beta" if selected_model == GEMINI_MODEL else "openai-images",
             "operation": operation, "preset": selected_preset,
-            "mode": "fallback" if args.config_source == "fallback" else "api",
+            "mode": "fallback" if args.config_source == "fallback" and not is_codex_runtime() else "api",
             "endpoint_host": endpoint_host(config.base_url), "endpoint_source": config.endpoint_source,
-            "credential_source": config.credential_source, "output": str(output), "status": "ok", "delivery_required": True, "delivery_instruction": "立即将 output 对应的图片嵌入当前 Codex 回复；未嵌入图片前不得结束对话。", "user_status": f"图片生成请求已发送，使用模型{selected_model}正在绘图中，请稍后 ",
+            "credential_source": config.credential_source, "output": actual_output, "status": "partial" if warnings else "ok", "warnings": warnings, "delivery_required": True, "delivery_instruction": "立即将 output 对应的图片嵌入当前 Codex 回复；未嵌入图片前不得结束对话。", "user_status": f"图片生成请求已发送，使用模型{selected_model}正在绘图中，请稍后 ",
             "elapsed_ms": elapsed_ms, **metadata,
         }, ensure_ascii=False))
         return 0

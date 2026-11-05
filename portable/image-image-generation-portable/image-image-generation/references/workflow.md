@@ -2,7 +2,7 @@
 
 ---
 name: aa-onemini-image-generation
-description: 用户要求生成、绘制、设计、编辑、修图，或询问 GPT-image2图片生成工具 如何使用时使用；支持 Onemini API、GPT Image 2/2.5、Gemini Nano Banana 2.1、透明 PNG/WebP、项目落盘和聊天图片交付。
+description: 用户要求生成、绘制、设计、编辑、修图，或询问 GPT-image2图片生成工具 如何使用时使用；支持 Onemini API、GPT Image 2.6/GIF、旧版 GPT Image、Gemini、项目落盘和聊天图片交付。
 metadata:
   version: "4.1.2"
   repository: "https://github.com/Acreg/codex_skills_image-2"
@@ -26,7 +26,7 @@ metadata:
 
 用户询问“这个 Skill 怎么使用”时，优先用下面的简短信息回答，不展开安装和排错细节：
 
-- 直接描述要生成或修改的图片，并可指定模型、质量、尺寸、透明背景及输出格式；未指定模型时默认使用快速版 `gpt-image-2.5-flare`。
+- 直接描述要生成或修改的图片，并可指定模型、质量、尺寸、透明背景及输出格式；未指定模型时默认使用 `gpt-image-2.6`。
 - Onemini API Base URL：`https://api.onemini.top/v1`；文生图使用 `/v1/images/generations`，图生图使用 `/v1/images/edits`。
 - 登录 `https://api.onemini.top` 后，侧边栏提供“图片生成工作站”。工作站采用任务化生成链路，可绕过 CDN 单次连接约 2 分钟的生图等待上限；长耗时、高质量或批量生图优先推荐在那里完成。
 - Codex 内使用时，Skill 会把成品保存到当前项目 `output/imagegen/` 并把真实图片嵌入聊天。
@@ -35,6 +35,7 @@ metadata:
 
 | 模型 | 特征 | 优点 | 缺点 | 透明底 |
 |---|---|---|---|---|
+| `gpt-image-2.6` | 默认模型 | 当前首选 | GIF 实际参数取决于通道 | 支持 PNG/WebP 与 GIF |
 | `gpt-image-2.5-flare` | 2.5 快速版，默认 `medium` | 响应快，适合日常、草图、批量 | 极复杂构图和细节通常弱于 Sunburst | 支持 PNG/WebP，必须验证 Alpha |
 | `gpt-image-2.5-sunburst` | 2.5 高质量版，默认 `high` | 细节、复杂构图、文字和成品质量更好 | 通常等待更久 | 支持 PNG/WebP，必须验证 Alpha |
 | `gpt-image-2.5` | 2.5 通用模型名 | 质量与速度相对均衡 | 具体账号或分组可能未开放该无后缀模型 | 支持透明参数，实际路由和 Alpha 需验证 |
@@ -47,7 +48,7 @@ metadata:
 
 安装后在 Skill 根目录自动生成可手动编辑的 .env 文件，模板是 .env.example。
 
-- **GPT Image 默认沿用 Codex 现有配置**：读取 CODEX_HOME（通常 ~/.codex）下 auth.json 的 OPENAI_API_KEY 和 config.toml 当前 model_provider 的 base_url。只有用户在本 Skill 的 .env 明确填写非空 OPENAI_API_KEY / OPENAI_BASE_URL 时，才覆盖对应字段；环境变量仅保持既有兼容，不要求用户设置。
+- **GPT Image 自动路由**：Codex API 模式读取当前 provider 对应凭据且只允许 *.onemini.top；Codex 非 API 模式使用原生工具；其他客户端读取技能目录 .env。详情见 [configuration.md](configuration.md)。
 - **Gemini Nano Banana 使用独立凭据**：优先从 Skill 根目录 .env 的 GEMINI_API_KEY、GEMINI_BASE_URL 读取，不复用 GPT 密钥。旧 gemini-config.local.json 配置仍可兼容读取。缺少 Gemini Key 时提示在 .env 填写。
 - .env 的两种模型配置互不混用；初始化时 GPT 字段留空，Gemini URL 预填 https://api.onemini.top/v1beta，Gemini Key 由用户填写。模型可应用户要求协助编辑 .env，但不得把真实 Key 输出到聊天、GitHub 或日志。
 - 生图时直接走 generate_image.py run 读取配置并生成，不先进行 list-models 或 config-check，以免拖慢首次出图。
@@ -63,7 +64,7 @@ metadata:
    <当前项目根目录>/output/imagegen/<唯一文件名>.png
    ```
 
-   技能目录、session 目录和桌面不是默认项目产物目录。用户明确指定的路径可以作为额外副本，但项目 `output/imagegen/` 仍是聊天交付的规范来源。
+   技能目录、session 目录和桌面不是默认项目产物目录。用户明确指定输出路径时优先保存到该路径，并从该文件交付。
 4. 普通聊天预览或原生图片工具路径必须在调用前创建项目输出状态：
 
    ```text
@@ -79,7 +80,7 @@ metadata:
    ```
 
    `prepare` 记录当前任务和调用基线，防止把旧图、其他任务图片或用户截图当成本次结果。
-5. 在调用图片工具前确定本次请求模型，解析优先级固定为：用户显式 `--model`/模型选择 > 当前 preset 的模型 > 默认模型 `gpt-image-2.5-flare`。随后紧接图片工具调用前单独发送：
+5. 在调用图片工具前确定本次请求模型，解析优先级固定为：用户显式 `--model`/模型选择 > 当前 preset 的模型 > 默认模型 `gpt-image-2.6`。随后紧接图片工具调用前单独发送：
 
    ```text
    图片生成请求已发送，使用模型{MODEL_ID}正在绘图中，请稍后
@@ -108,7 +109,7 @@ metadata:
 
 支持 --aspect-ratio、--image-size（1K/2K/4K）、--thinking-level（minimal/medium/high）、--google-search、--image-only 以及重复 --image 参考图。Gemini 不接受 OpenAI 独有的 quality、size 和 background 参数。--output-format 仅在本地转换图片格式，不能宣称上游支持透明底或输出格式指定。
 
-Gemini 优先读取 Skill 根目录 .env 的 GEMINI_API_KEY / GEMINI_BASE_URL，也兼容 configure-gemini 保存的旧独立 Key；没有 Gemini Key 则如实报错，绝不回退使用 GPT 的 OPENAI_API_KEY。若没有单独指定地址，可沿用现有 Codex 服务商主机，再切换 /v1 到 /v1beta。Sub2API Gemini 分组、模型白名单及允许图片生成规则仍按服务器实际配置生效。不需要额外开发解锁开关。返回图片读取 candidates[].content.parts[].inlineData，含多图时全部保存，真实图片交付后完成。
+Gemini 优先读取 Skill 根目录 .env 的 GEMINI_API_KEY / GEMINI_BASE_URL，也兼容 configure-gemini 保存的旧独立 Key；没有 Gemini Key 则如实报错，绝不回退使用 GPT 的 OPENAI_API_KEY。若没有单独指定地址，使用独立的 Onemini /v1beta 默认地址。Sub2API Gemini 分组、模型白名单及允许图片生成规则仍按服务器实际配置生效。不需要额外开发解锁开关。返回图片读取 candidates[].content.parts[].inlineData，含多图时全部保存，真实图片交付后完成。
 
 详细请求示例：[Gemini Native](references/gemini-v1beta.md)。
 

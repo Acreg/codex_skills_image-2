@@ -34,6 +34,9 @@ echo Python selected: %PYEXE% %PYARG%
 if errorlevel 1 goto failed
 "%PYEXE%" %PYARG% -c "from PIL import Image" >nul 2>nul
 if not errorlevel 1 goto ok
+echo Pillow is required to generate and validate images.
+choice /C YN /M "Install the Pillow dependency now"
+if errorlevel 2 goto missing_pillow
 echo Installing Pillow image dependency...
 "%PYEXE%" %PYARG% -m pip install --disable-pip-version-check --no-index --find-links="%~dp0bundled-dependencies\windows-x64" "Pillow>=10"
 if not errorlevel 1 goto ok

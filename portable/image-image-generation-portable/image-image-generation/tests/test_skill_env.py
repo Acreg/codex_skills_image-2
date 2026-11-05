@@ -25,10 +25,11 @@ class SkillEnvTests(unittest.TestCase):
     def test_codex_auth_and_provider_default(self):
         self.env.write_text('OPENAI_API_KEY = ""\nOPENAI_BASE_URL = ""\nGEMINI_API_KEY = ""\n')
         (self.home / "auth.json").write_text(json.dumps({"OPENAI_API_KEY": "GPT_TEST"}))
-        (self.home / "config.toml").write_text('model_provider="user"\n[model_providers.user]\nbase_url="https://codex.example/v1"\n')
-        config = g.discover_api_config(self.home)
+        (self.home / "config.toml").write_text('model_provider="user"\n[model_providers.user]\nbase_url="https://api.onemini.top/v1"\n')
+        with patch.dict(os.environ, {"CODEX_THREAD_ID": "synthetic"}):
+            config = g.discover_api_config(self.home)
         self.assertEqual(config.api_key, "GPT_TEST")
-        self.assertEqual(config.base_url, "https://codex.example/v1")
+        self.assertEqual(config.base_url, "https://api.onemini.top/v1")
         self.assertEqual(config.credential_source, "auth.json")
         self.assertEqual(config.endpoint_source, "config.toml")
 

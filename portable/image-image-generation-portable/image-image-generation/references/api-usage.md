@@ -35,35 +35,13 @@
 
 ## 配置来源
 
-已有 API 配置按以下顺序读取：
-
-- Key：当前进程 `OPENAI_API_KEY` → 当前机器 Codex `auth.json` 顶层显式 `OPENAI_API_KEY`。
-- 地址：`OPENAI_BASE_URL` → 当前机器 `config.toml` 所选 provider 的 `base_url` → 官方 API 默认地址。
-- 不读取或转换 OAuth 登录令牌。
-
-缺少显式 Key 时，`run` 会在发送网络请求前返回配置错误。若用户只需要聊天预览，直接改用一次原生图片工具；若用户要求精确模型或项目成品，再进行一次性 API 配置。
-
-`config-check` 仅用于配置或诊断，不属于正常生图流程：
-
-```text
-<python> -B <skill-root>/scripts/generate_image.py config-check
-```
-
-## 专用配置
-
-安装者明确选择独立配置时，按 [fallback-setup.md](fallback-setup.md) 操作，并显式使用：
-
-```text
-<python> -B <skill-root>/scripts/generate_image.py run --config-source fallback --prompt "测试"
-```
-
-不把 Key 放入命令行、源码、日志或聊天。更换已有专用配置仍需单独确认；输出图片的 `--force` 不代表配置替换确认。
+Codex API 模式自动读取当前 provider 的 Onemini URL 与对应 Key；Codex 非 API 登录返回 `native_required`，使用原生工具。非 Codex 客户端读取技能目录 `.env`。详见 [配置](configuration.md)。正常请求不运行 `config-check`；只有错误后才按需诊断。历史 `--config-source fallback` 仅用于非 Codex 客户端兼容，不能用于绕过 Codex 的 Onemini 域名限制。
 
 ## 运行环境
 
 - 使用当前项目作为工作目录，不进入技能安装目录执行。
 - Codex Desktop 可使用 bundled Python；其他环境使用 Python 3.11+ 与 Pillow。
-- 缺少依赖时才处理依赖，不在正常请求前探测或安装。
+- 缺少依赖时先询问用户意见；同意后用当前 Python 安装 Pillow，不在正常请求前探测或安装。
 - API 调用可能按所选渠道单独计费；超时或结果未知时先检查已有输出，不重复发送。
 
 ## Gemini Nano Banana 2.1

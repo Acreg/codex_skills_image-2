@@ -137,7 +137,9 @@ class SkillTests(unittest.TestCase):
     def test_existing_and_fallback_configs_are_isolated(self):
         g.configure_fallback({'api_key': self.key})
         env_key = 'test-env-' + uuid.uuid4().hex
-        with patch.dict(os.environ, {'OPENAI_API_KEY': env_key, 'OPENAI_BASE_URL': 'https://existing.example.test'}):
+        env_file = self.root / 'skill.env'
+        env_file.write_text(f'OPENAI_API_KEY="{env_key}"\nOPENAI_BASE_URL="https://existing.example.test"\n')
+        with patch.object(g, 'SKILL_ENV_PATH', env_file):
             existing = g.discover_api_config(self.root)
             fallback = g.load_fallback()
         self.assertEqual(existing.api_key, env_key)
@@ -148,12 +150,13 @@ class SkillTests(unittest.TestCase):
 
     def test_existing_auth_and_provider_compatibility(self):
         (self.root / 'auth.json').write_text(json.dumps({'OPENAI_API_KEY': self.key}))
-        (self.root / 'config.toml').write_text('model_provider="custom"\n[model_providers.custom]\nbase_url="https://existing.example.test/v1"\n')
-        config = g.discover_api_config(self.root)
+        (self.root / 'config.toml').write_text('model_provider="custom"\n[model_providers.custom]\nbase_url="https://api.onemini.top/v1"\n')
+        with patch.dict(os.environ, {'CODEX_THREAD_ID': 'synthetic'}):
+            config = g.discover_api_config(self.root)
+            report = g.config_report(self.root)
         self.assertEqual(config.credential_source, 'auth.json')
         self.assertEqual(config.endpoint_source, 'config.toml')
         self.assertEqual(config.api_key, self.key)
-        report = g.config_report(self.root)
         self.assertTrue(report['api_mode']['available'])
         self.assertNotIn(self.key, json.dumps(report))
 
@@ -341,7 +344,7 @@ class SkillTests(unittest.TestCase):
     def test_edit_request_contract_retained(self):
         self.output.write_bytes(self.png)
         body, content_type = g.multipart_body('test prompt', [self.output], 'auto', 'medium')
-        self.assertIn(b'gpt-image-2.5-flare', body)
+        self.assertIn(b'gpt-image-2.6', body)
         self.assertIn(self.png, body)
         self.assertIn('multipart/form-data', content_type)
         self.assertEqual(json.loads(g.json_body('test', 'auto', 'medium'))['n'], 1)
@@ -400,9 +403,9 @@ class SkillTests(unittest.TestCase):
                 self.assertNotIn('.rollback', name)
 
     def test_default_and_selectable_image_models(self):
-        self.assertEqual(g.DEFAULT_MODEL, 'gpt-image-2.5-flare')
+        self.assertEqual(g.DEFAULT_MODEL, 'gpt-image-2.6')
         self.assertEqual(set(g.SUPPORTED_MODELS), {
-            'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2.5', 'gpt-image-2', 'gpt-image-2-2026-04-21', 'gemini-nano-banana-2.1'
+            'gpt-image-2.6', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2.5', 'gpt-image-2', 'gpt-image-2-2026-04-21', 'gemini-nano-banana-2.1'
         })
         for model in g.SUPPORTED_MODELS:
             with self.subTest(model=model):
@@ -414,7 +417,7 @@ class SkillTests(unittest.TestCase):
                     self.assertEqual(payload['model'], model)
 
     def test_gpt_image_2_5_is_selectable_but_not_default(self):
-        self.assertEqual(g.DEFAULT_MODEL, 'gpt-image-2.5-flare')
+        self.assertEqual(g.DEFAULT_MODEL, 'gpt-image-2.6')
         payload = json.loads(g.json_body('test', 'auto', 'medium', 'gpt-image-2.5'))
         self.assertEqual(payload['model'], 'gpt-image-2.5')
 
@@ -444,7 +447,7 @@ class SkillTests(unittest.TestCase):
     def test_request_defaults_and_sunburst_quality(self):
         prompt, model, quality, size, preset, background, output_format = g.resolve_request_options('test', None, None, None, None)
         self.assertEqual((prompt, model, quality, size, preset, background, output_format),
-                         ('test', 'gpt-image-2.5-flare', 'medium', 'auto', 'auto', 'auto', 'png'))
+                         ('test', 'gpt-image-2.6', 'medium', 'auto', 'auto', 'auto', 'png'))
         _, model, quality, _, _, _, _ = g.resolve_request_options(
             'test', 'gpt-image-2.5-sunburst', None, None, None)
         self.assertEqual((model, quality), ('gpt-image-2.5-sunburst', 'high'))
@@ -458,7 +461,7 @@ class SkillTests(unittest.TestCase):
             None, None, None, None, 'benchmark-t2i')
         self.assertIn('PROJECT SUNBURST', prompt)
         self.assertEqual((model, quality, size, preset),
-                         ('gpt-image-2.5-sunburst', 'high', 'auto', 'benchmark-t2i'))
+                         ('gpt-image-2.6', 'high', 'auto', 'benchmark-t2i'))
 
     def test_run_without_image_is_single_generate_request(self):
         with (
@@ -471,7 +474,7 @@ class SkillTests(unittest.TestCase):
         self.assertEqual((code, err), (0, ''))
         report = json.loads(out)
         self.assertEqual((report['operation'], report['model'], report['quality'], report['preset']),
-                         ('generate', 'gpt-image-2.5-flare', 'medium', 'auto'))
+                         ('generate', 'gpt-image-2.6', 'medium', 'auto'))
         self.assertTrue(request.call_args.args[0].endswith('/images/generations'))
         self.assertEqual(request.call_count, 1)
 
@@ -527,7 +530,7 @@ class SkillTests(unittest.TestCase):
 
 
     def test_config_report_lists_fast_presets(self):
-        report = g.existing_config_report(self.root)
+        report = g.config_report(self.root)
         self.assertEqual(report['available_presets'], list(g.PRESET_OPTIONS))
         self.assertIn('benchmark-t2i', report['available_presets'])
 
@@ -567,7 +570,7 @@ class SkillTests(unittest.TestCase):
 
     def test_unspecified_transparency_preserves_default_model(self):
         values = g.resolve_request_options('isolated mascot', None, None, None, None, 'transparent', None)
-        self.assertEqual(values[1], 'gpt-image-2.5-flare')
+        self.assertEqual(values[1], 'gpt-image-2.6')
         self.assertEqual(values[-2:], ('transparent', 'png'))
 
     def test_explicit_transparency_model_is_preserved(self):
@@ -609,8 +612,8 @@ class SkillTests(unittest.TestCase):
         for model in g.SUPPORTED_MODELS:
             self.assertIn(model, skill)
             self.assertIn(model, models)
-        self.assertEqual((root / "VERSION").read_text(encoding="utf-8").strip(), "4.1.3")
-        self.assertEqual(g.VERSION, "4.1.3")
+        self.assertEqual((root / "VERSION").read_text(encoding="utf-8").strip(), "4.2.0")
+        self.assertEqual(g.VERSION, "4.2.0")
 
 if __name__ == '__main__':
     unittest.main()
